@@ -1,10 +1,20 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  experimental: {
-    // This allows you to view the app on your phone or other devices 
-    // using your local IP (192.168.68.61)
-    allowedDevOrigins: ['192.168.68.61', 'localhost:3000'],
+  // Most recent Next.js versions moved this here or handled it via env
+  devIndicators: {
+    appIsrStatus: true,
+  },
+  // If you are using a version where this is required for HMR:
+  async headers() {
+    return [
+      {
+        source: '/_next/:path*',
+        headers: [
+          { key: 'Access-Control-Allow-Origin', value: '*' },
+        ],
+      },
+    ]
   },
 };
 

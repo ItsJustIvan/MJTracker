@@ -1,5 +1,7 @@
-import React from 'react';
+'use client'
+import React, { useState } from 'react';
 
+// 1. THIS DEFINES THE "RULES"
 interface TransactionPanelProps {
   playerNames: string[];
   winnerIdx: number | null;
@@ -7,14 +9,16 @@ interface TransactionPanelProps {
   onCancel: () => void;
 }
 
+// 2. THIS TELLS THE FUNCTION TO OBEY THE RULES
 export default function TransactionPanel({ 
   playerNames, 
   winnerIdx, 
   onRecord, 
   onCancel 
-}) {
-  const [points, setPoints] = React.useState(3);
-  const [selectedLoser, setSelectedLoser] = React.useState<number | 'all' | null>(null);
+}: TransactionPanelProps) { // <--- ADDED THIS TYPE DEFINITION
+  
+  const [points, setPoints] = useState(3);
+  const [selectedLoser, setSelectedLoser] = useState<number | 'all' | null>(null);
 
   if (winnerIdx === null) return null;
 
@@ -26,19 +30,34 @@ export default function TransactionPanel({
         <div className="flex justify-between items-center mb-6">
           <div className="flex flex-col text-left">
             <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Recording Win For</span>
-            <span className="text-2xl font-black uppercase text-mj-blue">{playerNames[winnerIdx]}</span>
+            <span className="text-2xl font-black uppercase text-emerald-500">{playerNames[winnerIdx]}</span>
           </div>
-          <button onClick={onCancel} className="w-10 h-10 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center font-bold">✕</button>
+          <button 
+            onClick={onCancel} 
+            className="w-10 h-10 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center font-bold hover:bg-rose-500 hover:text-white transition-colors"
+          >
+            ✕
+          </button>
         </div>
 
         {/* 1. Point Stepper */}
         <div className="grid grid-cols-3 gap-2 mb-6">
-          <button onClick={() => setPoints(Math.max(1, points - 1))} className="h-16 rounded-2xl bg-zinc-100 dark:bg-zinc-800 text-3xl font-black">-</button>
+          <button 
+            onClick={() => setPoints(Math.max(1, points - 1))} 
+            className="h-16 rounded-2xl bg-zinc-100 dark:bg-zinc-800 text-3xl font-black active:scale-95 transition-transform"
+          >
+            -
+          </button>
           <div className="flex flex-col items-center justify-center border-2 border-dashed border-zinc-200 dark:border-zinc-700 rounded-2xl">
-            <span className="text-4xl font-mono font-black">{points}</span>
+            <span className="text-4xl font-mono font-black tabular-nums">{points}</span>
             <span className="text-[8px] font-black uppercase">Points</span>
           </div>
-          <button onClick={() => setPoints(points + 1)} className="h-16 rounded-2xl bg-zinc-100 dark:bg-zinc-800 text-3xl font-black">+</button>
+          <button 
+            onClick={() => setPoints(points + 1)} 
+            className="h-16 rounded-2xl bg-zinc-100 dark:bg-zinc-800 text-3xl font-black active:scale-95 transition-transform"
+          >
+            +
+          </button>
         </div>
 
         {/* 2. Discarder Selection */}
@@ -51,7 +70,9 @@ export default function TransactionPanel({
                   key={i}
                   onClick={() => setSelectedLoser(i)}
                   className={`py-3 rounded-xl font-black text-xs uppercase border-2 transition-all 
-                    ${selectedLoser === i ? 'bg-mj-red border-mj-red text-white' : 'bg-transparent border-zinc-100 dark:border-zinc-800'}`}
+                    ${selectedLoser === i 
+                      ? 'bg-rose-500 border-rose-500 text-white shadow-lg shadow-rose-500/20' 
+                      : 'bg-transparent border-zinc-100 dark:border-zinc-800 dark:text-zinc-400'}`}
                 >
                   {name}
                 </button>
@@ -60,7 +81,9 @@ export default function TransactionPanel({
             <button 
               onClick={() => setSelectedLoser('all')}
               className={`col-span-2 py-3 rounded-xl font-black text-xs uppercase border-2 border-dashed transition-all
-                ${selectedLoser === 'all' ? 'bg-mj-blue border-mj-blue text-white' : 'border-zinc-200 dark:border-zinc-700 text-zinc-400'}`}
+                ${selectedLoser === 'all' 
+                  ? 'bg-emerald-500 border-emerald-500 text-white shadow-lg shadow-emerald-500/20' 
+                  : 'border-zinc-200 dark:border-zinc-700 text-zinc-400'}`}
             >
               Self-Picked (All Pay)
             </button>
@@ -71,9 +94,9 @@ export default function TransactionPanel({
         <button 
           disabled={selectedLoser === null}
           onClick={() => onRecord(points, selectedLoser!)}
-          className="w-full py-5 bg-zinc-950 dark:bg-zinc-100 text-white dark:text-zinc-900 rounded-3xl font-black text-xl uppercase shadow-xl disabled:opacity-10 active:scale-95 transition-all"
+          className="w-full py-5 bg-zinc-950 dark:bg-zinc-100 text-white dark:text-zinc-900 rounded-3xl font-black text-xl uppercase shadow-xl disabled:opacity-20 active:scale-[0.98] transition-all"
         >
-          Record Transaction
+          Confirm Transaction
         </button>
       </div>
     </div>
