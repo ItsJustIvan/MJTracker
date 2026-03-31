@@ -10,6 +10,7 @@ interface Props {
   getWindForSeat: (idx: number) => number;
   onClaim: (idx: number) => void;
   onSelectWinner: (idx: number) => void;
+  currentUserId: string | undefined; // Add this to identify "Me"
 }
 
 export default function SeatGrid({ 
@@ -20,8 +21,12 @@ export default function SeatGrid({
   getPlayerName, 
   getWindForSeat, 
   onClaim, 
-  onSelectWinner 
+  onSelectWinner,
+  currentUserId
 }: Props) {
+  // Check if "I" am already sitting in any of the 4 seats
+  const userIsSittingSomewhereElse = sessionPlayers.some(p => p.profile_id === currentUserId);
+
   return (
     <main className="grid grid-cols-2 gap-4 p-4 flex-1">
       {scores.map((score, i) => {
@@ -42,7 +47,7 @@ export default function SeatGrid({
                 onClick={(e) => { e.stopPropagation(); onClaim(i); }}
                 className="absolute top-2 right-2 bg-emerald-500 hover:bg-emerald-600 text-[9px] text-white px-2 py-1 rounded font-bold uppercase transition-all shadow-lg active:scale-95"
               >
-                Claim
+                {userIsSittingSomewhereElse ? 'Move Here' : 'Claim'}
               </button>
             )}
           </div>

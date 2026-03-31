@@ -37,10 +37,37 @@ export default function SettingsModal({ isOpen, onClose, user, currentName, onUp
     setLoading(false);
   };
 
+  const handleLeaveSeat = async () => {
+  if (!user) return;
+  const { error } = await supabase
+    .from('session_players')
+    .delete()
+    .eq('profile_id', user.id);
+
+  if (!error) {
+    onUpdate(); // This triggers the refreshPlayers in page.tsx
+    onClose();
+  }
+};
+
   const handleLogout = async () => {
-    await supabase.auth.signOut();
-    window.location.reload(); // Hard refresh to clear all states
-  };
+  setLoading(true);
+  
+  // 1. "Stand up" from the table before leaving
+  if (user) {
+    await supabase
+      .from('session_players')
+      .delete()
+      .eq('session_id', '64058d9e-2ff2-4db1-9943-a28f421aae1a') // Use your sessionId variable
+      .eq('profile_id', user.id);
+  }
+
+  // 2. Clear the Auth session
+  await supabase.auth.signOut();
+  
+  // 3. Force refresh to reset the UI
+  window.location.reload();
+};
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-md z-[60] flex items-center justify-center p-4">
@@ -58,6 +85,12 @@ export default function SettingsModal({ isOpen, onClose, user, currentName, onUp
               placeholder="Enter your name..."
             />
           </div>
+          <button 
+  onClick={handleLeaveSeat}
+  className="w-full py-3 mb-2 bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-white font-bold rounded-xl text-xs uppercase"
+>
+  Leave Current Seat
+</button>
 
           <button 
             onClick={handleSave}

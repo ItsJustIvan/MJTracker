@@ -79,10 +79,35 @@ const refreshPlayers = useCallback(async () => {
 
   const getWindForSeat = (seatIdx: number) => (seatIdx - currentDealerIdx + 4) % 4;
 
-  const handleClaimSeat = async (seatIdx: number) => {
+const handleClaimSeat = async (seatIdx: number) => {
     if (!user) return setIsAuthModalOpen(true);
-    const { error } = await supabase.from('session_players').insert({ session_id: sessionId, profile_id: user.id, seat_index: seatIdx });
-    if (error) alert("Seat taken!");
+
+    // 1. Check if the current user is already sitting somewhere
+    const existingSeat = sessionPlayers.find(p => p.profile_id === user.id);
+
+    // 2. If they are moving to a new seat, remove the old one first
+    if (existingSeat) {
+      // If they clicked the seat they are already in, do nothing
+      if (existingSeat.seat_index === seatIdx) return;
+
+      await supabase
+        .from('session_players')
+        .delete()
+        .eq('session_id', sessionId)
+        .eq('profile_id', user.id);
+    }
+
+    // 3. Insert into the new seat
+    const { error } = await supabase.from('session_players').insert({ 
+      session_id: sessionId, 
+      profile_id: user.id, 
+      seat_index: seatIdx 
+    });
+
+    if (error) {
+      // If someone else grabbed it in the millisecond we were moving
+      alert("Seat taken!");
+    }
   };
 
   const handleRecordScore = async (basePoints: number, loserIdx: number | 'all') => {
@@ -115,6 +140,7 @@ const refreshPlayers = useCallback(async () => {
         getWindForSeat={getWindForSeat}
         onClaim={handleClaimSeat}
         onSelectWinner={(i) => setWinnerIdx(i === winnerIdx ? null : i)}
+        currentUserId={user?.id} // Add this line!
       />
 
       <TransactionPanel 
