@@ -5,6 +5,7 @@ import TransactionPanel from '@/components/TransactionPanel';
 import AuthModal from '@/components/AuthModal';
 import SessionHeader from '@/components/SessionHeader';
 import SeatGrid from '@/components/SeatGrid';
+import SettingsModal from '@/components/SettingsModal';
 import { User } from '@supabase/supabase-js';
 
 export default function MahjongTracker() {
@@ -15,6 +16,7 @@ export default function MahjongTracker() {
   const [currentDealerIdx, setCurrentDealerIdx] = useState(0);
   const [dealerStreak, setDealerStreak] = useState(0);
   const [winnerIdx, setWinnerIdx] = useState<number | null>(null);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   const sessionId = '64058d9e-2ff2-4db1-9943-a28f421aae1a';
 
@@ -36,10 +38,14 @@ export default function MahjongTracker() {
     }
   }, [sessionId]);
 
-  const refreshPlayers = useCallback(async () => {
-    const { data } = await supabase.from('session_players').select('seat_index, profiles(display_name, avatar_url)').eq('session_id', sessionId);
-    if (data) setSessionPlayers(data);
-  }, [sessionId]);
+const refreshPlayers = useCallback(async () => {
+  const { data } = await supabase
+    .from('session_players')
+    .select('profile_id, seat_index, profiles(display_name, avatar_url)') // Added profile_id here
+    .eq('session_id', sessionId);
+  
+  if (data) setSessionPlayers(data);
+}, [sessionId]);
 
   // --- 2. AUTH & REALTIME ---
   useEffect(() => {
@@ -94,7 +100,11 @@ export default function MahjongTracker() {
   // --- 4. RENDER ---
   return (
     <div className="min-h-screen bg-slate-100 dark:bg-zinc-950 flex flex-col">
-      <SessionHeader user={user} dealerStreak={dealerStreak} />
+      <SessionHeader 
+  user={user} 
+  dealerStreak={dealerStreak} 
+  onOpenSettings={() => setIsSettingsOpen(true)} // You'll need to add this prop to SessionHeader
+/>
       
       <SeatGrid 
         scores={scores}
@@ -113,6 +123,13 @@ export default function MahjongTracker() {
         onRecord={handleRecordScore}
         onCancel={() => setWinnerIdx(null)}
       />
+      <SettingsModal 
+  isOpen={isSettingsOpen} 
+  onClose={() => setIsSettingsOpen(false)} 
+  user={user}
+  currentName={sessionPlayers.find(p => p.profile_id === user?.id)?.profiles?.display_name || ''}
+  onUpdate={refreshPlayers}
+/>
 
       <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} />
     </div>
