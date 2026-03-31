@@ -8,9 +8,9 @@ import SeatGrid from '@/components/SeatGrid';
 import TransactionPanel from '@/components/TransactionPanel';
 import SettingsModal from '@/components/SettingsModal';
 import AuthModal from '@/components/AuthModal';
+import ManageSeatModal from '@/components/ManageSeatModal'; // NEW COMPONENT
 
 export default function MahjongTracker() {
-  // Static ID for now, as per your setup
   const sessionId = '64058d9e-2ff2-4db1-9943-a28f421aae1a';
   
   const { 
@@ -20,9 +20,11 @@ export default function MahjongTracker() {
     currentDealerIdx, 
     dealerStreak,
     status, 
-    permissions,        // NEW: Pull from hook
+    permissions,
+    guestSeat,          // NEW: From updated hook
     handleClaimSeat, 
-    handleRemovePlayer, // NEW: Pull from hook
+    handleLeaveSeat,    // NEW: From updated hook
+    handleRemovePlayer,
     handleRecordScore,
     handleCloseTable, 
     refreshPlayers 
@@ -30,28 +32,38 @@ export default function MahjongTracker() {
 
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isManageModalOpen, setIsManageModalOpen] = useState(false); // NEW
   const [winnerIdx, setWinnerIdx] = useState<number | null>(null);
+  const [managedSeatIdx, setManagedSeatIdx] = useState<number | null>(null); // NEW
 
-  // --- MISSING HELPERS ADDED BELOW ---
-
-  // 1. Get Player Name (Updated to handle Guests)
+  // 1. Get Player Name
   const getPlayerName = (idx: number) => {
     const player = sessionPlayers.find(p => p.seat_index === idx);
     if (!player) return `Seat ${idx + 1}`;
     return player.profiles?.display_name || player.guest_name || "Guest";
   };
 
-  // 2. Wind Logic (Calculates wind based on dealer position)
+  // 2. Wind Logic
   const getWindForSeat = (seatIdx: number) => {
-    // 0: East, 1: South, 2: West, 3: North
     return (seatIdx - currentDealerIdx + 4) % 4;
   };
 
-  // 3. Selection Logic
-  const handleSelectWinner = (idx: number) => {
-    // Only allow selecting a winner if the seat is occupied
-    const isOccupied = sessionPlayers.some(p => p.seat_index === idx);
-    if (isOccupied && status === 'active') {
+  // 3. UPDATED: Selection & Management Logic
+  const handleSeatInteraction = (idx: number) => {
+    if (status !== 'active') return;
+
+    const player = sessionPlayers.find(p => p.seat_index === idx);
+    if (!player) return; // Can't select an empty seat as a winner
+
+    // Determine if this is "My Seat" (Account or Local Guest)
+    const isMySeat = (user && player.profile_id === user.id) || (guestSeat === idx);
+
+    if (isMySeat) {
+      // Open Management menu for self
+      setManagedSeatIdx(idx);
+      setIsManageModalOpen(true);
+    } else {
+      // Select someone else as the winner
       setWinnerIdx(idx === winnerIdx ? null : idx);
     }
   };
@@ -73,12 +85,13 @@ export default function MahjongTracker() {
         currentDealerIdx={currentDealerIdx}
         winnerIdx={winnerIdx}
         getPlayerName={getPlayerName}
-        getWindForSeat={getWindForSeat} // Now defined!
-        onSelectWinner={handleSelectWinner} // Now defined!
+        getWindForSeat={getWindForSeat}
+        onSelectWinner={handleSeatInteraction} // POINTING TO NEW LOGIC
         currentUserId={user?.id}
-        permissions={permissions} // Now pulled from hook!
-        onRemovePlayer={handleRemovePlayer} // Now pulled from hook!
+        permissions={permissions}
+        onRemovePlayer={handleRemovePlayer}
         onClaim={handleClaimSeat}
+        onOpenAuth={() => setIsAuthModalOpen(true)}
       />
 
       {status === 'active' && winnerIdx !== null && (
@@ -92,6 +105,22 @@ export default function MahjongTracker() {
           onCancel={() => setWinnerIdx(null)}
         />
       )}
+
+      {/* NEW: Manage Seat Modal */}
+      <ManageSeatModal 
+        isOpen={isManageModalOpen}
+        name={managedSeatIdx !== null ? getPlayerName(managedSeatIdx) : ''}
+        isGuest={!user}
+        onClose={() => setIsManageModalOpen(false)}
+        onLeave={() => {
+          if (managedSeatIdx !== null) handleLeaveSeat(managedSeatIdx);
+          setIsManageModalOpen(false);
+        }}
+        onSignup={() => {
+          setIsManageModalOpen(false);
+          setIsAuthModalOpen(true);
+        }}
+      />
 
       <SettingsModal 
         isOpen={isSettingsOpen} 

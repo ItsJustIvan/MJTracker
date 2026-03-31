@@ -12,14 +12,11 @@ interface Props {
   getPlayerName: (idx: number) => string;
   getWindForSeat: (idx: number) => number;
   onClaim: (idx: number, guestName?: string) => void;
-  onRemovePlayer: (idx: number) => void; // Added for Admin/Cleanup
+  onRemovePlayer: (idx: number) => void;
   onSelectWinner: (idx: number) => void;
   currentUserId: string | undefined;
-  permissions: { // Added permissions prop
-    isAdmin: boolean;
-    canUndo: boolean;
-    canClose: boolean;
-  };
+  permissions: any;
+  onOpenAuth: () => void; // Defined in interface
 }
 
 export default function SeatGrid({ 
@@ -31,14 +28,14 @@ export default function SeatGrid({
   getPlayerName, 
   getWindForSeat, 
   onClaim, 
-  onRemovePlayer, // New handler
+  onRemovePlayer,
   onSelectWinner,
   currentUserId,
-  permissions // New prop
+  permissions,
+  onOpenAuth // <--- ADDED THIS HERE to destructure it
 }: Props) {
   const [selectedSeat, setSelectedSeat] = useState<number | null>(null);
 
-  // Check if current user is sitting at the table
   const userIsSittingSomewhereElse = sessionPlayers.some(p => p.profile_id === currentUserId);
 
   return (
@@ -61,7 +58,6 @@ export default function SeatGrid({
             {/* --- ACTION BUTTONS --- */}
             {status === 'active' && (
               <div className="absolute top-2 right-2 flex gap-1">
-                {/* 1. CLAIM BUTTON (Shows if seat is empty) */}
                 {!isOccupied && (
                   <button 
                     onClick={(e) => { 
@@ -74,7 +70,6 @@ export default function SeatGrid({
                   </button>
                 )}
 
-                {/* 2. ADMIN CLEAR BUTTON (Shows if seat is occupied AND user is Admin) */}
                 {isOccupied && permissions?.isAdmin && (
                   <button 
                     onClick={(e) => { 
@@ -83,7 +78,7 @@ export default function SeatGrid({
                     }}
                     className="bg-red-500 hover:bg-red-600 text-[9px] text-white px-2 py-1 rounded font-bold uppercase transition-all shadow-lg"
                   >
-                    Clear
+                    Leave
                   </button>
                 )}
               </div>
@@ -99,6 +94,10 @@ export default function SeatGrid({
         onConfirm={(guestName: string) => {
           onClaim(selectedSeat!, guestName);
           setSelectedSeat(null);
+        }}
+        onSignup={() => {
+          setSelectedSeat(null);
+          onOpenAuth(); // Now this will work because onOpenAuth is destructured!
         }}
       />
     </main>

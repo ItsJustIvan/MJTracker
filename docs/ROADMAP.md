@@ -15,10 +15,11 @@ This document outlines the journey from **v0.2** to **v1.0**.
 ## 🚀 Phase 1: Identity & Entry (The "Join" Journey)
 *Goal: Zero-friction onboarding for live environments.*
 
-- [ ] **Schema Update:** Add `is_admin` to `profiles` and `guest_name` to `session_players`.
-- [ ] **Guest Mode:** Implement "Claim Seat as Guest" logic in `useMahjongSession`.
-- [ ] **Auth Bridge:** Prompt Guests to create accounts to "promote" their session stats to a permanent profile.
-- [ ] **Deep Linking:** Ensure table URLs (e.g., `/table/[id]`) are shareable and handle auto-join logic.
+- [x] Schema Update: Added is_admin to profiles and guest_name to session_players.
+- [x] Guest Mode: Implemented "Claim Seat as Guest" with local persistence via localStorage.
+- [x] Auth Bridge: Created the "Identity Choice" UI and the Automatic Account Merge logic in useMahjongSession.
+- [x] Seat Management: Added "Leave Seat" and "Manage Seat" modals to allow users to vacate or upgrade mid-game.
+- [x] Manual Auth: Deployed Email/Password authentication with CAN-SPAM compliant marketing opt-ins.
 
 ---
 
