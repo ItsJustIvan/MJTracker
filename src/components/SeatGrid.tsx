@@ -1,0 +1,53 @@
+'use client'
+import ScoreCard from './ScoreCard';
+
+interface Props {
+  scores: number[];
+  sessionPlayers: any[];
+  currentDealerIdx: number;
+  winnerIdx: number | null;
+  getPlayerName: (idx: number) => string;
+  getWindForSeat: (idx: number) => number;
+  onClaim: (idx: number) => void;
+  onSelectWinner: (idx: number) => void;
+}
+
+export default function SeatGrid({ 
+  scores, 
+  sessionPlayers, 
+  currentDealerIdx, 
+  winnerIdx, 
+  getPlayerName, 
+  getWindForSeat, 
+  onClaim, 
+  onSelectWinner 
+}: Props) {
+  return (
+    <main className="grid grid-cols-2 gap-4 p-4 flex-1">
+      {scores.map((score, i) => {
+        const isOccupied = sessionPlayers.some(p => p.seat_index === i);
+        return (
+          <div key={i} className="relative group">
+            <ScoreCard 
+              index={i}
+              name={getPlayerName(i)}
+              score={score}
+              windIdx={getWindForSeat(i)}
+              isDealer={i === currentDealerIdx}
+              isSelected={winnerIdx === i}
+              onClick={() => onSelectWinner(i)}
+            />
+            {!isOccupied && (
+              <button 
+                onClick={(e) => { e.stopPropagation(); onClaim(i); }}
+                className="absolute top-2 right-2 bg-emerald-500 hover:bg-emerald-600 text-[9px] text-white px-2 py-1 rounded font-bold uppercase transition-all shadow-lg active:scale-95"
+              >
+                Claim
+              </button>
+            )}
+          </div>
+        );
+      })}
+    </main>
+  );
+}

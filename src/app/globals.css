@@ -1,26 +1,28 @@
 @import "tailwindcss";
 
+@theme {
+  /* Mission Mahjong Custom Colors */
+  --color-mj-red: #dc2626;
+  --color-mj-blue: #2563eb;
+  --color-mj-green: #15803d;
+  --color-mj-orange: #ea580c;
+
+  /* Custom Spacing or Transitions */
+  --animate-mj-pop: scale(1.05);
+}
+
+/* Global Dark Mode logic is now much simpler */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #f8fafc;
+  --foreground: #0f172a;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+.dark {
+  --background: #09090b;
+  --foreground: #fafafa;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
 }
