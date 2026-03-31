@@ -2,7 +2,7 @@
 import ScoreCard from './ScoreCard';
 
 interface Props {
-  status: boolean;
+  status: 'active' | 'closed';
   scores: number[];
   sessionPlayers: any[];
   currentDealerIdx: number;
