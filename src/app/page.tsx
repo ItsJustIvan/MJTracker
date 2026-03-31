@@ -41,11 +41,13 @@ export default function MahjongTracker() {
 
   return (
     <div className="min-h-screen bg-slate-100 dark:bg-zinc-950 flex flex-col">
-      <SessionHeader 
-        user={user} 
-        dealerStreak={dealerStreak} 
-        onOpenSettings={() => setIsSettingsOpen(true)} 
-      />
+<SessionHeader 
+  user={user} 
+  dealerStreak={dealerStreak} 
+  status={status} // From your useMahjongSession hook
+  onOpenSettings={() => setIsSettingsOpen(true)} 
+  onCloseTable={handleCloseTable} // From your useMahjongSession hook
+/>
       
       <SeatGrid 
         scores={scores}
@@ -64,15 +66,17 @@ export default function MahjongTracker() {
         status={status}
       />
 
-      <TransactionPanel 
-        playerNames={[0,1,2,3].map(i => getPlayerName(i))}
-        winnerIdx={winnerIdx}
-        onRecord={(pts, loser) => {
-          if (winnerIdx !== null) handleRecordScore(winnerIdx, pts, loser);
-          setWinnerIdx(null);
-        }}
-        onCancel={() => setWinnerIdx(null)}
-      />
+  {status === 'active' && (
+        <TransactionPanel 
+          playerNames={[0,1,2,3].map(i => getPlayerName(i))}
+          winnerIdx={winnerIdx}
+          onRecord={(pts, loser) => {
+            if (winnerIdx !== null) handleRecordScore(winnerIdx, pts, loser);
+            setWinnerIdx(null);
+          }}
+          onCancel={() => setWinnerIdx(null)}
+        />
+      )}
 
       <SettingsModal 
         isOpen={isSettingsOpen} 

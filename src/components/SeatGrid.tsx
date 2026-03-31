@@ -2,6 +2,7 @@
 import ScoreCard from './ScoreCard';
 
 interface Props {
+  status: boolean;
   scores: number[];
   sessionPlayers: any[];
   currentDealerIdx: number;
@@ -14,6 +15,7 @@ interface Props {
 }
 
 export default function SeatGrid({ 
+  status,
   scores, 
   sessionPlayers, 
   currentDealerIdx, 
@@ -42,7 +44,7 @@ export default function SeatGrid({
               isSelected={winnerIdx === i}
               onClick={() => onSelectWinner(i)}
             />
-            {!isOccupied && (
+            {!isOccupied && status === 'active' && (
               <button 
                 onClick={(e) => { e.stopPropagation(); onClaim(i); }}
                 className="absolute top-2 right-2 bg-emerald-500 hover:bg-emerald-600 text-[9px] text-white px-2 py-1 rounded font-bold uppercase transition-all shadow-lg active:scale-95"
