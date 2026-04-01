@@ -1,28 +1,72 @@
 @import "tailwindcss";
 
 @theme {
-  /* Mission Mahjong Custom Colors */
-  --color-mj-red: #dc2626;
-  --color-mj-blue: #2563eb;
-  --color-mj-green: #15803d;
-  --color-mj-orange: #ea580c;
+  /* Mission Mahjong v0.2 Core Palette */
+  --color-brand-green: #059669;    /* emerald-600: Trusted, Clear */
+  --color-brand-green-hover: #047857;
+  --color-brand-green-soft: #ecfdf5;
 
-  /* Custom Spacing or Transitions */
-  --animate-mj-pop: scale(1.05);
+  --color-ui-background: #ffffff;
+  --color-ui-surface: #f8fafc;     /* slate-50: Clean paper feel */
+  --color-ui-border: #e2e8f0;      /* slate-200 */
+  
+  --color-text-main: #0f172a;      /* slate-900: High contrast */
+  --color-text-muted: #64748b;    /* slate-500 */
+
+  /* Standardized Radii for older users (not too sharp, not too round) */
+  --radius-card: 1.25rem;
+  --radius-button: 0.75rem;
+
+  /* Custom Animations */
+  --animate-mj-pop: scale(1.02);
 }
 
-/* Global Dark Mode logic is now much simpler */
+/* --- BASE STYLES --- */
 :root {
-  --background: #f8fafc;
-  --foreground: #0f172a;
+  --background: var(--color-ui-background);
+  --foreground: var(--color-text-main);
 }
 
-.dark {
-  --background: #09090b;
-  --foreground: #fafafa;
-}
-
+/* We are explicitly NOT prioritizing Dark Mode for this demographic */
 body {
   background: var(--background);
   color: var(--foreground);
+  font-family: system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* --- UTILITY COMPONENTS (The "Auntie-Approved" Set) --- */
+@layer components {
+  
+  /* The Main Action Button: Big, Bold, Easy to tap */
+  .btn-primary {
+    @apply w-full bg-brand-green hover:bg-brand-green-hover text-white 
+           p-5 rounded-[--radius-button] font-bold text-lg shadow-sm 
+           transition-all active:scale-95 disabled:opacity-40;
+  }
+
+  /* Secondary/Cancel Button: Clearly different from the main action */
+  .btn-secondary {
+    @apply w-full bg-ui-surface hover:bg-ui-border text-text-main 
+           p-4 rounded-[--radius-button] font-semibold text-sm 
+           border border-ui-border transition-all;
+  }
+
+  /* The "Paper" Input: Looks like a real form field */
+  .input-field {
+    @apply w-full p-4 rounded-[--radius-button] bg-white border-2 border-ui-border 
+           text-text-main text-lg outline-none focus:border-brand-green 
+           transition-colors placeholder:text-text-muted;
+  }
+
+  /* Standard Table/Seat Card */
+  .card-container {
+    @apply bg-white border border-ui-border rounded-[--radius-card] 
+           shadow-sm p-6 transition-shadow hover:shadow-md;
+  }
+
+  /* Section Labels: Small, bold, and high-contrast */
+  .label-caps {
+    @apply text-[11px] font-black uppercase tracking-widest text-text-muted mb-2 block;
+  }
 }
