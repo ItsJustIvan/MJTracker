@@ -147,8 +147,8 @@ const handleRecordScore = async (payload: {
       
       .subscribe((status) => {
   console.log("📡 Realtime Status:", status);
-  if (status === 'SUBSCRIPTION_ERROR') {
-    console.error("❌ Realtime failed. Check Replication toggles and Primary Keys.");
+  if (status !== 'SUBSCRIBED') {
+    console.warn("📡 Realtime notice:", status);
   }
 });
 
