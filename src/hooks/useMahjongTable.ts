@@ -59,22 +59,21 @@ export function useMahjongTable(sessionId: string, user: any, profile: any) {
 
   // --- HANDLERS (RPC Powered) ---
 
-  const handleClaimSeat = async (seatIndex: number) => {
+const handleClaimSeat = async (seatIndex: number) => {
     if (status !== 'active' || !user) return;
 
-const { error } = await supabase.rpc('record_mahjong_hand', {
-  p_session_id: sessionId,
-  p_winner_idx: payload.winnerIdx,     // <--- Unpacking from the object
-  p_is_self_draw: payload.isSelfDraw, // <--- Unpacking from the object
-  p_points: payload.points,           // <--- Unpacking from the object
-  p_loser_idx: payload.loserIdx       // <--- Unpacking from the object
-});
+    // 🗝️ FIXED: Removed the accidental 'record_mahjong_hand' call from here
+    // Use the correct 'claim_seat' RPC
+    const { error } = await supabase.rpc('claim_seat', {
+      p_session_id: sessionId,
+      p_seat_index: seatIndex,
+      p_profile_id: user.id
+    });
 
     if (error) console.error("Claim Seat Error:", error);
-    // Realtime will trigger refreshPlayers()
   };
 
-  const handleRecordScore = async (payload: { 
+const handleRecordScore = async (payload: { 
     winnerIdx: number, 
     isSelfDraw: boolean, 
     points: number, 
@@ -82,6 +81,7 @@ const { error } = await supabase.rpc('record_mahjong_hand', {
   }) => {
     if (status !== 'active') return;
 
+    // 🗝️ This is where 'payload' actually exists
     const { error } = await supabase.rpc('record_mahjong_hand', {
       p_session_id: sessionId,
       p_winner_idx: payload.winnerIdx,
@@ -91,7 +91,6 @@ const { error } = await supabase.rpc('record_mahjong_hand', {
     });
 
     if (error) console.error("Score Recording Error:", error);
-    // Realtime will trigger refreshScores() and refreshSessionState()
   };
 
   const handleCloseTable = async () => {
