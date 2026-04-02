@@ -204,9 +204,13 @@ export default function GameTableView({ sessionId, game, user, isAdmin }: GameTa
   sessionId={sessionId}
   isAdmin={isAdmin}
   user={user}
-  // 🗝️ Add these two lines:
-  currentName={user ? profile?.display_name : (guestId ? stabilizedSeats.find(s => s.isMySeat)?.name : '')}
-  onUpdate={(newName) => claimSeat(stabilizedSeats.find(s => s.isMySeat)?.index || 0, newName)}
+  currentName={stabilizedSeats.find(s => s.isMySeat)?.name || ''}
+  onUpdate={(newName: string) => {
+      const mySeat = stabilizedSeats.find(s => s.isMySeat);
+      if (mySeat) {
+        claimSeat(mySeat.index, newName);
+      }
+    }}
   onCloseTable={closeTable}
   onOpenAuth={() => setIsAuthModalOpen(true)}
 />

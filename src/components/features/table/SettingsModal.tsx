@@ -10,7 +10,7 @@ interface SettingsModalProps {
   currentName: string;
   sessionId: string;
   isAdmin: boolean;
-  onUpdate: () => void;
+  onUpdate: (name: string) => void;
   onCloseTable: () => Promise<void>;
   onOpenAuth: () => void; // 🗝️ Trigger to open your existing AuthModal
 }
