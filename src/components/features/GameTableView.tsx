@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import SeatCard from './table/SeatCard';
 import ScoringDrawer from './table/ScoringDrawer';
-import SettingsModal from './table/SettingsModal'; 
+import SettingsDrawer from './table/SettingsDrawer'; 
 import AuthModal from '@/components/features/auth/AuthModal';
 import JoinModal from '@/components/features/lobby/JoinModal';
 
@@ -48,14 +48,14 @@ export default function GameTableView({ sessionId, game, user, isAdmin }: GameTa
   const [winnerIdx, setWinnerIdx] = useState<number | null>(null);
   const [pendingSeatIndex, setPendingSeatIndex] = useState<number | null>(null);
 
-  // 1. Stabilize Seats (Ghost Logic)
+// 1. Define the Seats (Ghost Logic)
   const stabilizedSeats = [0, 1, 2, 3].map(idx => {
     const player = sessionPlayers?.find((p: any) => p.seat_index === idx);
     
     // A seat is a ghost if no record exists OR all identity fields are empty
     const isGhost = !player || (!player.profile_id && !player.guest_name && !player.guest_session_id);
     
-    // 🗝️ FIX: Correctly identify if THIS player is the current user
+    // Identify if THIS player is the current user/guest
     const isMySeat = !isGhost && (
       (user && player.profile_id === user.id) || 
       (guestId && player.guest_session_id === guestId)
@@ -71,9 +71,11 @@ export default function GameTableView({ sessionId, game, user, isAdmin }: GameTa
     };
   });
 
+  // 2. NOW we can find "mySeat" and "playerNames" because the list above is finished
+  const mySeat = stabilizedSeats.find(s => s.isMySeat);
   const playerNames = stabilizedSeats.map(s => s.name);
 
-  // 2. Action Handlers
+  // 3. Action Handlers
   const handleOpenScoring = (idx: number) => {
     setWinnerIdx(idx);
     setIsDrawerOpen(true);
@@ -198,21 +200,24 @@ export default function GameTableView({ sessionId, game, user, isAdmin }: GameTa
         }}
       />
 
-      <SettingsModal 
+      <SettingsDrawer 
   isOpen={isSettingsModalOpen}
   onClose={() => setIsSettingsModalOpen(false)}
-  sessionId={sessionId}
+  user={user}            // Auth User
+  profile={profile}      // Profile data from hook
+  matchingSeat={mySeat}  // The stabilized seat object (index, player, name, etc.)
   isAdmin={isAdmin}
-  user={user}
-  currentName={stabilizedSeats.find(s => s.isMySeat)?.name || ''}
   onUpdate={(newName: string) => {
-      const mySeat = stabilizedSeats.find(s => s.isMySeat);
-      if (mySeat) {
-        claimSeat(mySeat.index, newName);
-      }
-    }}
+    // If we have a seat, update it. If not, this shouldn't even be clickable.
+    if (mySeat) {
+      claimSeat(mySeat.index, newName);
+    }
+  }}
   onCloseTable={closeTable}
-  onOpenAuth={() => setIsAuthModalOpen(true)}
+  onOpenAuth={() => {
+    setIsSettingsModalOpen(false);
+    setIsAuthModalOpen(true);
+  }}
 />
     </div>
   );

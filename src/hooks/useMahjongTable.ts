@@ -193,6 +193,7 @@ const permissions = {
     claimSeat,
     recordHand,
     closeTable,
-    getWindForSeat
+    getWindForSeat,
+    profile
   };
 }
