@@ -9,6 +9,8 @@ interface SeatCardProps {
   isDealer: boolean;
   dealerStreak: number;
   isGhost: boolean;
+  isMySeat: boolean;
+  onLeave: () => void;
   onSelect: () => void;
   onClaim: () => void;
 }
@@ -21,6 +23,8 @@ export default function SeatCard({
   isDealer, 
   dealerStreak, 
   isGhost,
+  isMySeat,
+  onLeave,
   onSelect,
   onClaim 
 }: SeatCardProps) {
@@ -103,7 +107,19 @@ export default function SeatCard({
           >
             <span className="text-xs">+</span> Claim Seat
           </button>
-        ) : (
+        ) : isMySeat ? (
+          /* STATE: MY SEAT */
+          <button 
+            onClick={(e) => {
+              e.stopPropagation(); 
+              onLeave();
+            }}
+            className="text-[9px] font-black text-rose-600 uppercase tracking-widest bg-rose-50 px-4 py-1.5 rounded-full hover:bg-rose-100 transition-colors"
+          >
+            Leave Seat
+          </button>
+        ): (
+          /* STATE: SOMEONE ELSE'S SEAT */
           <span className="text-[8px] font-black text-zinc-300 uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity">
             Select to record win
           </span>

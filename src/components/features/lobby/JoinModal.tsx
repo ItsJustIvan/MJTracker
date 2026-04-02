@@ -14,6 +14,22 @@ export default function JoinModal({ isOpen, isLoggedIn, onCancel, onConfirm, onS
 
   if (!isOpen) return null;
 
+  // 🗝️ THE HANDLER: Sanitize and validate before passing up
+  const handleConfirm = () => {
+    const trimmedName = name.trim();
+    if (!trimmedName) return; 
+    
+    onConfirm(trimmedName);
+    setName(""); // Clear for next time
+  };
+
+  // 🗝️ UX: Let them hit "Enter" instead of clicking
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && name.trim()) {
+      handleConfirm();
+    }
+  };
+
   return (
     <div className="fixed inset-0 bg-zinc-900/40 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
       <div className="bg-white w-full max-w-sm rounded-[2.5rem] overflow-hidden shadow-2xl border border-zinc-200">
@@ -58,12 +74,13 @@ export default function JoinModal({ isOpen, isLoggedIn, onCancel, onConfirm, onS
                 placeholder="Ex: Guest"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
+                onKeyDown={handleKeyDown} // 🗝️ Added Enter key support
               />
             </div>
             
             <button 
               disabled={!name.trim()}
-              onClick={() => onConfirm(name)}
+              onClick={handleConfirm} // 🗝️ Use our local handler
               className="w-full bg-zinc-900 disabled:opacity-20 text-white p-5 rounded-2xl font-bold uppercase tracking-widest transition-all active:scale-95 hover:bg-zinc-800"
             >
               Join Table

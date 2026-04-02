@@ -8,9 +8,13 @@ export function useMahjongTable(sessionId: string, user: any, profile: any) {
   const [scores, setScores] = useState([0, 0, 0, 0]);
   const [currentDealerIdx, setCurrentDealerIdx] = useState(0);
   const [dealerStreak, setDealerStreak] = useState(0);
+  const [guestId, setGuestId] = useState<string | null>(null);
 
-  // --- REFRESH LOGIC (Targeted) ---
-  
+  // Initialize identity on mount
+  useEffect(() => {
+    setGuestId(localStorage.getItem('mahjong_guest_id'));
+  }, []);
+
   const refreshScores = useCallback(async () => {
     const { data } = await supabase
       .from('session_scores')
@@ -19,9 +23,7 @@ export function useMahjongTable(sessionId: string, user: any, profile: any) {
     
     if (data) {
       const newScores = [0, 0, 0, 0];
-      data.forEach(row => { 
-        newScores[row.seat_index] = row.total_score; 
-      });
+      data.forEach(row => { newScores[row.seat_index] = row.total_score; });
       setScores(newScores);
     }
   }, [sessionId]);
@@ -44,12 +46,10 @@ export function useMahjongTable(sessionId: string, user: any, profile: any) {
       .from('session_players')
       .select(`
         seat_index, 
-        is_ready,
         profile_id,
-        profiles (
-          display_name, 
-          avatar_url
-        )
+        guest_name,
+        guest_session_id,
+        profiles (display_name, avatar_url)
       `)
       .eq('session_id', sessionId)
       .order('seat_index', { ascending: true });
@@ -57,100 +57,118 @@ export function useMahjongTable(sessionId: string, user: any, profile: any) {
     if (data) setSessionPlayers(data);
   }, [sessionId]);
 
-  // --- HANDLERS (RPC Powered) ---
+const claimSeat = async (seatIndex: number, guestName?: string) => {
+  if (status !== 'active') return;
 
-const handleClaimSeat = async (seatIndex: number) => {
-    if (status !== 'active' || !user) return;
+  let currentGuestId = localStorage.getItem('mahjong_guest_id');
+  const isLeaving = guestName === undefined;
+  
+  // 🗝️ CTO Audit: Log the identity being sent
+  console.log("Claiming Seat:", {
+    seatIndex,
+    userId: user?.id,
+    guestId: currentGuestId,
+    isLeaving
+  });
 
-    // 🗝️ FIXED: Removed the accidental 'record_mahjong_hand' call from here
-    // Use the correct 'claim_seat' RPC
-    const { error } = await supabase.rpc('claim_seat', {
-      p_session_id: sessionId,
-      p_seat_index: seatIndex,
-      p_profile_id: user.id
-    });
+  // 1. Handle Guest ID generation
+  if (!user && !currentGuestId && !isLeaving) {
+    currentGuestId = crypto.randomUUID();
+    localStorage.setItem('mahjong_guest_id', currentGuestId);
+    setGuestId(currentGuestId); 
+  }
+  
+  // 2. Call RPC
+  const { error } = await supabase.rpc('sync_participant', {
+    p_session_id: sessionId,
+    p_seat_index: seatIndex,
+    // Use user display name if logged in, otherwise guest name
+    p_guest_name: isLeaving ? null : (user ? (profile?.display_name || 'Player') : (guestName || "Guest")),
+    p_profile_id: isLeaving ? null : (user?.id || null),
+    p_guest_session_id: isLeaving ? null : (user ? null : (currentGuestId || null))
+  });
 
-    if (error) console.error("Claim Seat Error:", error);
-  };
+  if (error) {
+    console.error("Seating Error:", error.message);
+  } else {
+    // 🗝️ Force a refresh on success to ensure the UI catches up
+    refreshPlayers();
+  }
+};
 
-const handleRecordScore = async (payload: { 
-    winnerIdx: number, 
-    isSelfDraw: boolean, 
-    points: number, 
+  const recordHand = async (payload: { 
+    resultType: 'win' | 'dead_hand', 
+    winnerIdx?: number | null, 
+    points?: number, 
+    isSelfDraw?: boolean, 
     loserIdx?: number | null 
   }) => {
     if (status !== 'active') return;
 
-    // 🗝️ This is where 'payload' actually exists
-    const { error } = await supabase.rpc('record_mahjong_hand', {
+    const { error } = await supabase.rpc('execute_round', {
       p_session_id: sessionId,
-      p_winner_idx: payload.winnerIdx,
-      p_is_self_draw: payload.isSelfDraw,
-      p_points: payload.points,
-      p_loser_idx: payload.isSelfDraw ? null : payload.loserIdx
+      p_result_type: payload.resultType,
+      p_winner_idx: payload.winnerIdx ?? null,
+      p_points: payload.points ?? 0,
+      p_is_self_draw: payload.isSelfDraw ?? false,
+      p_loser_idx: payload.loserIdx ?? null
     });
 
-    if (error) console.error("Score Recording Error:", error);
+    if (error) console.error("Scoring Error:", error.message);
   };
 
-  const handleCloseTable = async () => {
-    const { error } = await supabase.rpc('finalize_session_v5', { 
+  const closeTable = async () => {
+    const { error } = await supabase.rpc('seal_session', { 
       p_session_id: sessionId 
     });
     if (error) console.error("Close Table Error:", error);
   };
 
-  // --- PERMISSIONS ---
-  const permissions = {
-    isAdmin: profile?.is_admin || false,
-    isSeated: sessionPlayers.some(p => p.profile_id === user?.id),
-    mySeatIndex: sessionPlayers.find(p => p.profile_id === user?.id)?.seat_index,
-    canRecord: status === 'active' && sessionPlayers.some(p => p.profile_id === user?.id)
+  const getWindForSeat = (seatIdx: number) => {
+    const windOffset = (seatIdx - currentDealerIdx + 4) % 4;
+    const windData = [
+      { label: 'East', zh: '東' },
+      { label: 'South', zh: '南' },
+      { label: 'West', zh: '西' },
+      { label: 'North', zh: '北' }
+    ];
+    return {
+      label: windData[windOffset].label,
+      zh: windData[windOffset].zh,
+      isDealer: windOffset === 0
+    };
   };
 
-  // --- REALTIME ORCHESTRATION ---
+  const permissions = {
+    isAdmin: profile?.is_admin || false,
+    isSeated: sessionPlayers.some(p => {
+      // Use state or storage for most accurate 'me' check
+      const effectiveId = guestId || localStorage.getItem('mahjong_guest_id');
+      return (user && p.profile_id === user.id) || 
+             (effectiveId && p.guest_session_id === effectiveId);
+    }),
+    canRecord: status === 'active'
+  };
+
   useEffect(() => {
-    // Initial Load
     refreshScores(); 
     refreshSessionState(); 
     refreshPlayers();
 
-    const channel = supabase.channel(`realtime:table:${sessionId}`)
-      // 1. Listen for Score Changes (The "Money" moves)
-// Temporarily change this:
-.on('postgres_changes', { 
-  event: 'UPDATE', 
-  schema: 'public', 
-  table: 'session_scores' 
-  // 🗝️ Comment out the filter for a second
-  // filter: `session_id=eq.${sessionId}` 
-}, (payload) => {
-  console.log("🔥 ANY SCORE UPDATE:", payload);
-  refreshScores();
-})
-      
-      // 2. Listen for Session State (Dealer rotation, streaks, closing)
+    const channel = supabase.channel(`table_sync:${sessionId}`)
       .on('postgres_changes', { 
-        event: 'UPDATE', 
-        schema: 'public', 
-        table: 'sessions', 
+        event: 'UPDATE', schema: 'public', table: 'session_scores', 
+        filter: `session_id=eq.${sessionId}` 
+      }, () => refreshScores())
+      .on('postgres_changes', { 
+        event: 'UPDATE', schema: 'public', table: 'sessions', 
         filter: `id=eq.${sessionId}` 
       }, () => refreshSessionState())
-      
-      // 3. Listen for Player Changes (Claiming seats / Substitutions)
       .on('postgres_changes', { 
-        event: '*', 
-        schema: 'public', 
-        table: 'session_players', 
+        event: '*', schema: 'public', table: 'session_players', 
         filter: `session_id=eq.${sessionId}` 
       }, () => refreshPlayers())
-      
-      .subscribe((status) => {
-  console.log("📡 Realtime Status:", status);
-  if (status !== 'SUBSCRIBED') {
-    console.warn("📡 Realtime notice:", status);
-  }
-});
+      .subscribe();
 
     return () => { supabase.removeChannel(channel); };
   }, [sessionId, refreshScores, refreshSessionState, refreshPlayers]);
@@ -162,8 +180,11 @@ const handleRecordScore = async (payload: {
     currentDealerIdx,
     dealerStreak,
     permissions,
-    handleClaimSeat,
-    handleRecordScore,
-    handleCloseTable
+    guestId,
+    setGuestId,
+    claimSeat,
+    recordHand,
+    closeTable,
+    getWindForSeat
   };
 }
