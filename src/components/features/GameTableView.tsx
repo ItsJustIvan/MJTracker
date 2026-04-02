@@ -14,6 +14,7 @@ interface GameTableViewProps {
 }
 
 export default function GameTableView({ sessionId, game, user, isAdmin }: GameTableViewProps) {
+  
   const { 
     scores, 
     sessionPlayers, 
@@ -24,8 +25,20 @@ export default function GameTableView({ sessionId, game, user, isAdmin }: GameTa
     recordHand, 
     claimSeat, 
     closeTable, 
-    getWindForSeat 
+    getWindForSeat,
+    profile
   } = game;
+
+  console.log("🔍 [CTO Audit] Table State:", {
+    authStatus: user ? "Logged In" : "Guest",
+    profileData: profile,
+    rawPlayers: sessionPlayers,
+    myGuestId: guestId,
+    matchingSeat: sessionPlayers?.find((p: any) => 
+      (user && p.profile_id === user.id) || 
+      (guestId && p.guest_session_id === guestId)
+    )
+  });
 
   const [isJoinModalOpen, setIsJoinModalOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
@@ -186,14 +199,17 @@ export default function GameTableView({ sessionId, game, user, isAdmin }: GameTa
       />
 
       <SettingsModal 
-        isOpen={isSettingsModalOpen}
-        onClose={() => setIsSettingsModalOpen(false)}
-        sessionId={sessionId}
-        isAdmin={isAdmin}
-        user={user}
-        onCloseTable={closeTable}
-        onOpenAuth={() => setIsAuthModalOpen(true)}
-      />
+  isOpen={isSettingsModalOpen}
+  onClose={() => setIsSettingsModalOpen(false)}
+  sessionId={sessionId}
+  isAdmin={isAdmin}
+  user={user}
+  // 🗝️ Add these two lines:
+  currentName={user ? profile?.display_name : (guestId ? stabilizedSeats.find(s => s.isMySeat)?.name : '')}
+  onUpdate={(newName) => claimSeat(stabilizedSeats.find(s => s.isMySeat)?.index || 0, newName)}
+  onCloseTable={closeTable}
+  onOpenAuth={() => setIsAuthModalOpen(true)}
+/>
     </div>
   );
 }

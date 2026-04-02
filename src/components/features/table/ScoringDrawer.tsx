@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 
 interface ScoringDrawerProps {
   isOpen: boolean;
-  onOpen: () => void;
+  onOpen?: () => void;
   onClose: () => void;
   playerNames: string[];
   winnerIdx: number | null;

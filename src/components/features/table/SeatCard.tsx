@@ -6,13 +6,15 @@ interface SeatCardProps {
   player: any;
   displayName: string;
   score: number;
+  wind: string;
+  windZh: string;
   isDealer: boolean;
   dealerStreak: number;
   isGhost: boolean;
   isMySeat: boolean;
-  onLeave: () => void;
   onSelect: () => void;
   onClaim: () => void;
+  onLeave: () => Promise<void>;
 }
 
 export default function SeatCard({ 

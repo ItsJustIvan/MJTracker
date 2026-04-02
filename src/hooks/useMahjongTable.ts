@@ -58,42 +58,51 @@ export function useMahjongTable(sessionId: string, user: any, profile: any) {
   }, [sessionId]);
 
 const claimSeat = async (seatIndex: number, guestName?: string) => {
-  if (status !== 'active') return;
+  // Relaxed status check
+  if (status !== 'active' && status !== undefined) return;
 
-  let currentGuestId = localStorage.getItem('mahjong_guest_id');
-  const isLeaving = guestName === undefined;
+  // Use state guestId primarily, fallback to localStorage
+  const currentGuestId = guestId || localStorage.getItem('mahjong_guest_id');
   
-  // 🗝️ CTO Audit: Log the identity being sent
-  console.log("Claiming Seat:", {
-    seatIndex,
-    userId: user?.id,
-    guestId: currentGuestId,
-    isLeaving
-  });
+  const existingPlayer = sessionPlayers.find(p => p.seat_index === seatIndex);
+  const isCurrentlyMySeat = !!existingPlayer && (
+    (user && existingPlayer.profile_id === user.id) || 
+    (currentGuestId && existingPlayer.guest_session_id === currentGuestId)
+  );
+
+  const isLeaving = isCurrentlyMySeat && guestName === undefined;
 
   // 1. Handle Guest ID generation
-  if (!user && !currentGuestId && !isLeaving) {
-    currentGuestId = crypto.randomUUID();
-    localStorage.setItem('mahjong_guest_id', currentGuestId);
-    setGuestId(currentGuestId); 
+  let effectiveGuestId = currentGuestId;
+  if (!user && !effectiveGuestId && !isLeaving) {
+    effectiveGuestId = crypto.randomUUID();
+    localStorage.setItem('mahjong_guest_id', effectiveGuestId);
+    setGuestId(effectiveGuestId); 
   }
   
   // 2. Call RPC
   const { error } = await supabase.rpc('sync_participant', {
     p_session_id: sessionId,
     p_seat_index: seatIndex,
-    // Use user display name if logged in, otherwise guest name
     p_guest_name: isLeaving ? null : (user ? (profile?.display_name || 'Player') : (guestName || "Guest")),
     p_profile_id: isLeaving ? null : (user?.id || null),
-    p_guest_session_id: isLeaving ? null : (user ? null : (currentGuestId || null))
+    // Ensure we send null if it's a logged-in user to avoid type confusion
+    p_guest_session_id: isLeaving ? null : (user ? null : (effectiveGuestId || null))
   });
 
-  if (error) {
+if (error) {
+    // 1. Log it for us
     console.error("Seating Error:", error.message);
-  } else {
-    // 🗝️ Force a refresh on success to ensure the UI catches up
-    refreshPlayers();
+    
+    // 2. Show the sass to the user
+    // Postgres errors often come with a prefix like "p_session_id: ERROR: ..." 
+    // This regex or split helps clean it up to just the message
+    const cleanMessage = error.message.replace(/^.*?:\s*/, '');
+    alert(cleanMessage);
+    
+    refreshPlayers(); 
   }
+  // Note: refreshPlayers() is handled by the Realtime subscription automatically
 };
 
   const recordHand = async (payload: { 
@@ -139,16 +148,15 @@ const claimSeat = async (seatIndex: number, guestName?: string) => {
     };
   };
 
-  const permissions = {
-    isAdmin: profile?.is_admin || false,
-    isSeated: sessionPlayers.some(p => {
-      // Use state or storage for most accurate 'me' check
-      const effectiveId = guestId || localStorage.getItem('mahjong_guest_id');
-      return (user && p.profile_id === user.id) || 
-             (effectiveId && p.guest_session_id === effectiveId);
-    }),
-    canRecord: status === 'active'
-  };
+const permissions = {
+  isAdmin: profile?.is_admin || false,
+  isSeated: sessionPlayers.some(p => {
+    const effectiveId = guestId || (typeof window !== 'undefined' ? localStorage.getItem('mahjong_guest_id') : null);
+    return (user?.id && p.profile_id === user.id) || 
+           (effectiveId && p.guest_session_id === effectiveId);
+  }),
+  canRecord: status === 'active'
+};
 
   useEffect(() => {
     refreshScores(); 
