@@ -29,17 +29,6 @@ export default function GameTableView({ sessionId, game, user, isAdmin }: GameTa
     profile
   } = game;
 
-  console.log("🔍 [CTO Audit] Table State:", {
-    authStatus: user ? "Logged In" : "Guest",
-    profileData: profile,
-    rawPlayers: sessionPlayers,
-    myGuestId: guestId,
-    matchingSeat: sessionPlayers?.find((p: any) => 
-      (user && p.profile_id === user.id) || 
-      (guestId && p.guest_session_id === guestId)
-    )
-  });
-
   const [isJoinModalOpen, setIsJoinModalOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false); 
