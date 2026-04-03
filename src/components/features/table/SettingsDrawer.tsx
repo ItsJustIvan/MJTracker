@@ -7,7 +7,7 @@ interface SettingsDrawerProps {
   onClose: () => void;
   user: any;
   profile: any;
-  matchingSeat: any; // This will now receive the full 'mySeat' object
+  matchingSeat: any; 
   isAdmin: boolean;
   onUpdate: (newName: string) => void;
   onCloseTable: () => Promise<void>;
@@ -19,17 +19,22 @@ export default function SettingsDrawer({
 }: SettingsDrawerProps) {
   const [newName, setNewName] = useState('');
   
-  // 🗝️ THE SEATED CHECK
   // If matchingSeat exists, they are physically at the table.
   const isSeated = !!matchingSeat;
 
+  /**
+   * 1. Identity Sync
+   * Syncs the input field whenever the drawer opens or the user changes.
+   */
   useEffect(() => {
-    // If seated, we use their seat name or profile name. 
-    // If not seated, we show their global profile name (if logged in).
     const currentName = matchingSeat?.guest_name || profile?.display_name || '';
     setNewName(currentName);
-  }, [profile, matchingSeat, isOpen]); // Reset when drawer opens
+  }, [profile, matchingSeat, isOpen]);
 
+  /**
+   * 2. Name Persistence Logic
+   * Updates global profile if logged in, otherwise updates session-specific guest name.
+   */
   const handleSaveName = async () => {
     if (user) {
       const { error } = await supabase
@@ -38,30 +43,46 @@ export default function SettingsDrawer({
         .eq('id', user.id);
       if (!error) onUpdate(newName);
     } else if (isSeated) {
-      // Updates the guest_name via the claimSeat RPC passed in onUpdate
       onUpdate(newName);
     }
     onClose();
+  };
+
+  /**
+   * 3. Sign Out (The "Persistent Stake" Method)
+   * Destroys the session. Does NOT call vacate. 
+   * Reloading forces the app to re-evaluate identity as a Guest.
+   */
+  const handleSignOut = async () => {
+    const { error } = await supabase.auth.signOut();
+    if (!error) {
+      window.location.reload();
+    }
   };
 
   return (
     <>
       {/* Overlay */}
       <div 
-        className={`fixed inset-0 bg-black/40 backdrop-blur-sm z-[60] transition-opacity duration-300 ${isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`} 
+        className={`fixed inset-0 bg-black/40 backdrop-blur-sm z-[100] transition-opacity duration-300 ${
+    isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`} 
         onClick={onClose}
       />
       
       {/* Drawer */}
-      <div className={`fixed right-0 top-0 h-full w-full max-w-sm bg-white z-[70] shadow-2xl transform transition-transform duration-300 ease-in-out ${isOpen ? 'translate-x-0' : 'translate-x-full'}`}>
+      <div className={`fixed right-0 top-0 h-full w-full max-sm:w-full max-w-sm bg-white z-[110] shadow-2xl transform transition-transform duration-300 ease-in-out ${
+    isOpen ? 'translate-x-0' : 'translate-x-full'}`}>
         <div className="p-8 flex flex-col h-full">
+          
+          {/* Header */}
           <div className="flex justify-between items-center mb-10">
             <div>
               <h2 className="text-2xl font-black italic tracking-tighter leading-none">SETTINGS</h2>
               <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mt-1">
-      {isSeated 
-    ? `Occupying Seat ${(matchingSeat.index ?? matchingSeat.seat_index ?? 0) + 1}` 
-    : 'Spectator Mode'}              </p>
+                {isSeated 
+                  ? `Occupying Seat ${(matchingSeat.index ?? matchingSeat.seat_index ?? 0) + 1}` 
+                  : 'Spectator Mode'}
+              </p>
             </div>
             <button onClick={onClose} className="w-10 h-10 flex items-center justify-center bg-zinc-50 rounded-full text-zinc-400 hover:text-zinc-900 transition-colors">
               ✕
@@ -115,7 +136,7 @@ export default function SettingsDrawer({
                   </p>
                   <button 
                     onClick={onOpenAuth}
-                    className="w-full py-3 bg-emerald-600 text-white rounded-xl font-black text-[10px] uppercase shadow-lg shadow-emerald-600/20"
+                    className="w-full py-3 bg-emerald-600 text-white rounded-xl font-black text-[10px] uppercase shadow-lg shadow-emerald-600/20 active:scale-[0.98] transition-transform"
                   >
                     Register Now
                   </button>
@@ -131,7 +152,7 @@ export default function SettingsDrawer({
                   onClick={() => {
                     if(confirm("End this session for everyone?")) onCloseTable();
                   }}
-                  className="w-full py-4 bg-rose-50 text-rose-600 rounded-2xl font-black uppercase text-xs border border-rose-100 hover:bg-rose-600 hover:text-white transition-all"
+                  className="w-full py-4 bg-rose-50 text-rose-600 rounded-2xl font-black uppercase text-xs border border-rose-100 hover:bg-rose-600 hover:text-white transition-all active:scale-[0.98]"
                 >
                   Terminate Session
                 </button>
@@ -139,13 +160,29 @@ export default function SettingsDrawer({
             )}
           </div>
 
+          {/* Footer / Auth Status */}
           {user && (
-            <button 
-              onClick={() => supabase.auth.signOut().then(() => window.location.reload())}
-              className="mt-auto py-4 text-zinc-300 hover:text-rose-500 font-bold uppercase text-[10px] tracking-widest text-center transition-colors"
-            >
-              Sign Out
-            </button>
+            <div className="mt-auto pt-6 border-t border-zinc-100 space-y-4">
+              <div className="flex items-center gap-3 px-1">
+                <div className="w-8 h-8 bg-zinc-900 rounded-full flex items-center justify-center text-white text-[10px] font-black">
+                  {profile?.display_name?.charAt(0).toUpperCase() || 'P'}
+                </div>
+                <div className="overflow-hidden">
+                  <p className="text-[11px] font-black text-zinc-900 truncate uppercase tracking-tight">
+                    {profile?.display_name || 'Authenticated Player'}
+                  </p>
+                  <p className="text-[9px] font-bold text-zinc-400 truncate">
+                    {user.email}
+                  </p>
+                </div>
+              </div>
+              <button 
+                onClick={handleSignOut}
+                className="w-full py-4 bg-zinc-50 text-zinc-400 hover:text-rose-500 hover:bg-rose-50 rounded-2xl font-black uppercase text-[10px] tracking-widest text-center transition-all active:scale-[0.98]"
+              >
+                Sign Out
+              </button>
+            </div>
           )}
         </div>
       </div>

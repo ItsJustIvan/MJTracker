@@ -70,18 +70,34 @@ export default function GameTableView({ sessionId, game, user, isAdmin }: GameTa
     setIsDrawerOpen(true);
   };
 
-  const handleInitiateClaim = (idx: number) => {
-    setPendingSeatIndex(idx);
-    if (user) {
-      claimSeat(idx); 
-    } else {
-      setIsJoinModalOpen(true);
-    }
-  };
+const handleInitiateClaim = (idx: number) => {
+  setPendingSeatIndex(idx);
 
-  const handleLeaveSeat = async (idx: number) => {
+  // 1. If Logged In: Just claim/move immediately
+  if (user) {
+    claimSeat(idx);
+    return;
+  }
+
+  // 2. If Guest with existing Identity: Just move immediately
+  const hasLocalName = typeof window !== 'undefined' ? localStorage.getItem('mahjong_guest_name') : null;
+  const hasLocalId = typeof window !== 'undefined' ? localStorage.getItem('mahjong_guest_id') : null;
+
+  if (hasLocalId && hasLocalName) {
+    console.log("🚀 [Auto-Move]: Existing guest detected, moving to seat", idx);
+    claimSeat(idx); 
+    return;
+  }
+
+  // 3. Only if they are a "Fresh" Guest do we show the modal
+  setIsJoinModalOpen(true);
+};
+
+const handleLeaveSeat = async (idx: number) => {
     if (window.confirm("Are you sure you want to vacate this seat?")) {
-      await claimSeat(idx, undefined); 
+      // 🎯 Refactor: We tell the hook to vacate this specific seat.
+      // We pass 'null' or a 'vacate' flag depending on how your hook is set up.
+      await game.claimSeat(idx, undefined, true); // Added 'isVacating' flag
       
       if (!user) {
         localStorage.removeItem('mahjong_guest_id');
@@ -114,21 +130,36 @@ const handleRecordPayload = (payload: {
   };
 
   return (
-    <div className="min-h-screen bg-white text-zinc-900 flex flex-col overflow-hidden">
-      <header className="px-6 py-4 border-b border-zinc-100 flex justify-between items-center bg-white z-10">
-        <div>
-          <h1 className="text-xl font-black tracking-tighter">
-            MJ<span className="text-emerald-600">.</span>TRACKER
-          </h1>
+<div className="min-h-screen bg-white text-zinc-900 flex flex-col overflow-hidden">
+    <header className="px-6 py-4 border-b border-zinc-100 flex justify-between items-center bg-white z-10">
+      <div>
+        <h1 className="text-xl font-black tracking-tighter uppercase">
+          MJ<span className="text-emerald-600">.</span>Tracker
+        </h1>
+        <div className="flex items-center gap-2 mt-1">
           <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">
-            Table #{sessionId.slice(0, 4).toUpperCase()}
+            {game.tableData?.vanity_name || 'Join Code'}:
           </p>
+          <button 
+            onClick={() => {
+              const code = game.tableData?.short_code;
+              if (code) {
+                navigator.clipboard.writeText(code);
+                // Optional: You could trigger a small "Copied!" toast here
+              }
+            }}
+            className="text-[11px] font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100 hover:bg-emerald-100 active:scale-95 transition-all"
+          >
+            {game.tableData?.short_code?.toUpperCase() || "------"}
+          </button>
         </div>
-        <button 
-          onClick={() => setIsSettingsModalOpen(true)}
-          className="w-10 h-10 flex items-center justify-center bg-zinc-50 rounded-xl text-zinc-400 border border-zinc-100 hover:bg-zinc-100 transition-colors"
-        >
-          ☰
+      </div>
+      
+      <button 
+        onClick={() => setIsSettingsModalOpen(true)}
+        className="w-10 h-10 flex items-center justify-center bg-zinc-50 rounded-xl text-zinc-400 border border-zinc-100 hover:bg-zinc-100 transition-colors"
+      >
+        ☰
         </button>
       </header>
 
