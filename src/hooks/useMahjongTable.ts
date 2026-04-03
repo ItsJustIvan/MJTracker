@@ -105,26 +105,32 @@ if (error) {
   // Note: refreshPlayers() is handled by the Realtime subscription automatically
 };
 
-  const recordHand = async (payload: { 
-    resultType: 'win' | 'dead_hand', 
-    winnerIdx?: number | null, 
-    points?: number, 
-    isSelfDraw?: boolean, 
-    loserIdx?: number | null 
-  }) => {
-    if (status !== 'active') return;
+const recordHand = async (payload: { 
+  resultType: 'win' | 'dead_hand' | 'adjustment', 
+  winnerIdx?: number | null, 
+  points?: number, 
+  loserIdx?: number | 'all' | null, // 🔄 Updated to handle 'all'
+  isAdjustment?: boolean 
+}) => {
+  if (status !== 'active') return;
 
-    const { error } = await supabase.rpc('execute_round', {
-      p_session_id: sessionId,
-      p_result_type: payload.resultType,
-      p_winner_idx: payload.winnerIdx ?? null,
-      p_points: payload.points ?? 0,
-      p_is_self_draw: payload.isSelfDraw ?? false,
-      p_loser_idx: payload.loserIdx ?? null
-    });
+  // 🎯 RPC CALL: record_hand_v1
+  const { error } = await supabase.rpc('record_hand_v1', {
+    p_session_id: sessionId,
+    p_winner_idx: payload.winnerIdx ?? null,
+    // Convert loserIdx to string so 'all' and '0' are both valid
+    p_loser_idx: payload.loserIdx !== null ? payload.loserIdx.toString() : null,
+    p_base_points: payload.points ?? 0,
+    p_is_adjustment: payload.isAdjustment ?? false,
+    // We pass resultType if your SQL function needs it for dead_hand logic
+    // p_result_type: payload.resultType 
+  });
 
-    if (error) console.error("Scoring Error:", error.message);
-  };
+  if (error) {
+    console.error("🔍 [Engine Error]:", error.message);
+    // You might want to trigger a toast notification here
+  }
+};
 
   const closeTable = async () => {
     const { error } = await supabase.rpc('seal_session', { 
