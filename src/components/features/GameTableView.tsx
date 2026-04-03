@@ -19,7 +19,8 @@ export default function GameTableView({ sessionId, game, user, isAdmin }: GameTa
     scores, 
     sessionPlayers, 
     currentDealerIdx, 
-    dealerStreak, 
+    dealerStreak,
+    tableData, 
     guestId,
     setGuestId,
     recordHand, 
@@ -50,6 +51,8 @@ export default function GameTableView({ sessionId, game, user, isAdmin }: GameTa
       (guestId && player.guest_session_id === guestId)
     );
 
+    console.log("🛠️ AUDIT 1 (Props):", { sessionId, hasGame: !!game });
+    
     return {
       index: idx,
       player: isGhost ? null : player,
@@ -138,11 +141,11 @@ const handleRecordPayload = (payload: {
         </h1>
         <div className="flex items-center gap-2 mt-1">
           <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">
-            {game.tableData?.vanity_name || 'Join Code'}:
+            {tableData?.vanity_name || 'Join Code'}:
           </p>
           <button 
             onClick={() => {
-              const code = game.tableData?.short_code;
+              const code = tableData?.short_code;
               if (code) {
                 navigator.clipboard.writeText(code);
                 // Optional: You could trigger a small "Copied!" toast here
@@ -150,7 +153,7 @@ const handleRecordPayload = (payload: {
             }}
             className="text-[11px] font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100 hover:bg-emerald-100 active:scale-95 transition-all"
           >
-            {game.tableData?.short_code?.toUpperCase() || "------"}
+            {tableData?.short_code?.toUpperCase() || "------"}
           </button>
         </div>
       </div>
@@ -198,7 +201,7 @@ const handleRecordPayload = (payload: {
         winnerIdx={winnerIdx}
         onRecord={handleRecordPayload}
         getWindForSeat={getWindForSeat}
-        canAuthFixMode={isAdmin || (user && game?.tableData?.created_by === user.id)}      />
+        canAuthFixMode={isAdmin || (user && tableData?.created_by === user.id)}      />
 
       <JoinModal 
         isOpen={isJoinModalOpen}

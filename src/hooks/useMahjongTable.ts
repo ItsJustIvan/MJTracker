@@ -9,6 +9,7 @@ export function useMahjongTable(sessionId: string, user: any, profile: any) {
   const [currentDealerIdx, setCurrentDealerIdx] = useState(0);
   const [dealerStreak, setDealerStreak] = useState(0);
   const [guestId, setGuestId] = useState<string | null>(null);
+  const [tableData, setTableData] = useState<any>(null);
 
   // Prevents the migration/handover from firing multiple times during state transitions
   const isUpgrading = useRef(false);
@@ -44,18 +45,31 @@ export function useMahjongTable(sessionId: string, user: any, profile: any) {
     }
   }, [sessionId]);
 
-  const refreshSessionState = useCallback(async () => {
-    const { data } = await supabase
-      .from('sessions')
-      .select('current_dealer_idx, dealer_streak, status')
-      .eq('id', sessionId)
-      .single();
-    if (data) {
-      setCurrentDealerIdx(data.current_dealer_idx);
-      setDealerStreak(data.dealer_streak);
-      setStatus(data.status);
-    }
-  }, [sessionId]);
+const refreshSessionState = useCallback(async () => {
+  // 🎯 CRITICAL: We must destructure 'error' here so line 55 can see it
+  const { data, error } = await supabase
+    .from('sessions')
+    .select('*')
+    .eq('id', sessionId)
+    .single();
+    
+  // Now this line will work perfectly!
+  console.log("🛠️ AUDIT 2 (DB Result):", { data, error });
+    
+  if (error) {
+    console.error("🚫 Supabase Fetch Error:", error.message);
+    return;
+  }
+
+  if (data) {
+    setCurrentDealerIdx(data.current_dealer_idx);
+    setDealerStreak(data.dealer_streak);
+    setStatus(data.status);
+    setTableData(data); // 🚀 This will now fire and update the UI
+  }
+}, [sessionId]);    
+
+console.log("🛠️ AUDIT 3 (Hook Export):", { tableData });
 
   const refreshPlayers = useCallback(async () => {
     const { data } = await supabase
@@ -214,7 +228,7 @@ export function useMahjongTable(sessionId: string, user: any, profile: any) {
   }, [sessionId, refreshScores, refreshSessionState, refreshPlayers]);
 
   return {
-    status, scores, sessionPlayers, currentDealerIdx, dealerStreak,
+    status, scores, sessionPlayers, currentDealerIdx, dealerStreak, tableData,
     permissions, guestId, setGuestId, claimSeat, recordHand,
     closeTable: async () => { await supabase.rpc('seal_session', { p_session_id: sessionId }); },
     getWindForSeat, profile
