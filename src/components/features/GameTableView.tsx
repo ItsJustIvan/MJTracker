@@ -102,24 +102,26 @@ export default function GameTableView({ sessionId, game, user, isAdmin }: GameTa
     }
   };
 
-  const handleRecordPayload = (payload: { 
-    resultType: 'win' | 'dead_hand', 
+const handleRecordPayload = (payload: { 
+    resultType: 'win' | 'dead_hand' | 'adjustment', 
     points: number, 
-    loserIdx: number | 'all' | null 
+    loserIdx: number | 'all' | null,
+    isAdjustment?: boolean
   }) => {
-    if (payload.resultType === 'dead_hand') {
-      recordHand({ resultType: 'dead_hand' });
-    } else {
-      recordHand({
-        resultType: 'win',
-        winnerIdx: winnerIdx,
-        points: payload.points,
-        isSelfDraw: payload.loserIdx === 'all',
-        loserIdx: payload.loserIdx === 'all' ? null : (payload.loserIdx as number)
-      });
-    }
+    // 🎯 The Goal: Pass raw data to the hook. 
+    // The hook will then call: supabase.rpc('record_hand_v1', {...})
+    
+    recordHand({
+      winnerIdx: winnerIdx, // Captured from state when card was clicked
+      loserIdx: payload.loserIdx, // 'all' or the specific seat index
+      points: payload.points,
+      resultType: payload.resultType,
+      isAdjustment: !!payload.isAdjustment
+    });
+
     setIsDrawerOpen(false);
-    setTimeout(() => setWinnerIdx(null), 300);
+    // 🧹 Delay the reset so the drawer animation finishes before the name disappears
+    setTimeout(() => setWinnerIdx(null), 500);
   };
 
   return (
@@ -159,8 +161,9 @@ export default function GameTableView({ sessionId, game, user, isAdmin }: GameTa
                 dealerStreak={dealerStreak}
                 isGhost={seat.isGhost}
                 isMySeat={seat.isMySeat}
-                onSelect={() => seat.isGhost ? handleInitiateClaim(seat.index) : handleOpenScoring(seat.index)}
+                onSelect={() => handleOpenScoring(seat.index)}
                 onClaim={() => handleInitiateClaim(seat.index)}
+                isUserAlreadySeated={!!mySeat}
                 onLeave={() => handleLeaveSeat(seat.index)}
               />
             );
@@ -175,7 +178,7 @@ export default function GameTableView({ sessionId, game, user, isAdmin }: GameTa
         winnerIdx={winnerIdx}
         onRecord={handleRecordPayload}
         getWindForSeat={getWindForSeat}
-      />
+        canAuthFixMode={isAdmin || (user && game?.tableData?.created_by === user.id)}      />
 
       <JoinModal 
         isOpen={isJoinModalOpen}
