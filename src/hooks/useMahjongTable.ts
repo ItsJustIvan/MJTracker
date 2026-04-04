@@ -10,6 +10,7 @@ export function useMahjongTable(sessionId: string, user: any, profile: any) {
   const [dealerStreak, setDealerStreak] = useState(0);
   const [guestId, setGuestId] = useState<string | null>(null);
   const [tableData, setTableData] = useState<any>(null);
+  const [history, setHistory] = useState<any[]>([]);
 
   // Prevents the migration/handover from firing multiple times during state transitions
   const isUpgrading = useRef(false);
@@ -28,6 +29,17 @@ export function useMahjongTable(sessionId: string, user: any, profile: any) {
     setGuestId(id);
   }, []);
 
+const refreshHistory = useCallback(async () => {
+    if (!sessionId) return;
+    const { data, error } = await supabase
+      .from('vw_round_history')
+      .select('*')
+      .eq('session_id', sessionId)
+      .order('created_at', { ascending: false });
+
+    if (error) console.error("🚫 [History Error]:", error.message);
+    else setHistory(data || []);
+  }, [sessionId]);
   /**
    * 2. DATA REFRESH FUNCTIONS
    * Pure "Get" functions to sync local state with Postgres tables.
@@ -46,28 +58,26 @@ export function useMahjongTable(sessionId: string, user: any, profile: any) {
   }, [sessionId]);
 
 const refreshSessionState = useCallback(async () => {
-  // 🎯 CRITICAL: We must destructure 'error' here so line 55 can see it
-  const { data, error } = await supabase
-    .from('sessions')
-    .select('*')
-    .eq('id', sessionId)
-    .single();
-    
-  // Now this line will work perfectly!
-  console.log("🛠️ AUDIT 2 (DB Result):", { data, error });
-    
-  if (error) {
-    console.error("🚫 Supabase Fetch Error:", error.message);
-    return;
-  }
+    if (!sessionId) return;
+    const { data, error } = await supabase
+      .from('sessions')
+      .select('*')
+      .eq('id', sessionId)
+      .single();
+      
+    if (error) {
+      // If the error is just "Failed to fetch", it's usually a network/loop issue
+      console.error("🚫 Supabase Fetch Error:", error);
+      return;
+    }
 
-  if (data) {
-    setCurrentDealerIdx(data.current_dealer_idx);
-    setDealerStreak(data.dealer_streak);
-    setStatus(data.status);
-    setTableData(data); // 🚀 This will now fire and update the UI
-  }
-}, [sessionId]);    
+    if (data) {
+      setCurrentDealerIdx(data.current_dealer_idx);
+      setDealerStreak(data.dealer_streak);
+      setStatus(data.status);
+      setTableData(data);
+    }
+  }, [sessionId]);
 
 console.log("🛠️ AUDIT 3 (Hook Export):", { tableData });
 
@@ -192,17 +202,30 @@ console.log("🛠️ AUDIT 3 (Hook Export):", { tableData });
   /**
    * 6. SCORING & GAMEPLAY UTILS
    */
-  const recordHand = async (payload: any) => {
-    if (status !== 'active') return;
-    const { error } = await supabase.rpc('record_hand_v1', {
-      p_session_id: sessionId,
-      p_winner_idx: payload.winnerIdx ?? null,
-      p_loser_idx: payload.loserIdx !== null ? payload.loserIdx.toString() : null,
-      p_base_points: payload.points ?? 0,
-      p_is_adjustment: payload.isAdjustment ?? false,
-    });
-    if (error) console.error("🔍 [Engine Error]:", error.message);
-  };
+const recordHand = async (payload: {
+  winnerIdx: number | null;
+  loserIdx: number | 'all' | null;
+  points: number;
+  resultType: 'win' | 'dead_hand' | 'adjustment' | 'self_draw';
+}) => {
+  if (status !== 'active') return;
+
+  const { error } = await supabase.rpc('record_hand', {
+    p_session_id: sessionId,
+    p_winner_idx: payload.winnerIdx,
+    p_loser_idx: payload.loserIdx?.toString() || (payload.resultType === 'dead_hand' ? null : 'all'),
+    p_points: payload.points || 0,
+    p_result_type: payload.resultType
+  });
+
+ if (error) {
+    console.error("🚫 Backend Contract Violation:", error.message);
+  } else {
+    await refreshHistory();
+    await refreshScores();
+    await refreshSessionState();
+  }
+};
 
   const getWindForSeat = (seatIdx: number) => {
     const windOffset = (seatIdx - currentDealerIdx + 4) % 4;
@@ -210,25 +233,44 @@ console.log("🛠️ AUDIT 3 (Hook Export):", { tableData });
     return { ...windData[windOffset], isDealer: windOffset === 0 };
   };
 
-  /**
+/**
    * 7. REALTIME SUBSCRIPTIONS
-   * Listens to the database and triggers refreshes automatically when 
-   * any other player makes a move.
+   * Now includes History syncing and Transaction monitoring.
    */
   useEffect(() => {
-    refreshScores(); refreshSessionState(); refreshPlayers();
-    
+    // 1. Initial Load for the current user
+    refreshScores(); 
+    refreshSessionState(); 
+    refreshPlayers();
+    refreshHistory();
+
     const channel = supabase.channel(`table_sync:${sessionId}`)
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'session_scores', filter: `session_id=eq.${sessionId}` }, () => refreshScores())
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'sessions', filter: `id=eq.${sessionId}` }, () => refreshSessionState())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'session_players', filter: `session_id=eq.${sessionId}` }, () => refreshPlayers())
+      .on('postgres_changes', { 
+        event: '*', schema: 'public', table: 'session_scores', filter: `session_id=eq.${sessionId}` 
+      }, () => refreshScores())
+      
+      .on('postgres_changes', { 
+        event: 'UPDATE', schema: 'public', table: 'sessions', filter: `id=eq.${sessionId}` 
+      }, () => refreshSessionState())
+      
+      .on('postgres_changes', { 
+        event: '*', schema: 'public', table: 'session_players', filter: `session_id=eq.${sessionId}` 
+      }, () => refreshPlayers())
+
+      .on('postgres_changes', { 
+        event: 'INSERT', schema: 'public', table: 'transactions', filter: `session_id=eq.${sessionId}` 
+      }, () => {
+        refreshHistory(); 
+        refreshScores();
+    })
+
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
-  }, [sessionId, refreshScores, refreshSessionState, refreshPlayers]);
+  }, [sessionId, refreshScores, refreshSessionState, refreshPlayers, refreshHistory]); // ✅ Added refreshHistory to dependency array
 
   return {
-    status, scores, sessionPlayers, currentDealerIdx, dealerStreak, tableData,
+    status, scores, sessionPlayers, currentDealerIdx, dealerStreak, tableData, history, refreshHistory,
     permissions, guestId, setGuestId, claimSeat, recordHand,
     closeTable: async () => { await supabase.rpc('seal_session', { p_session_id: sessionId }); },
     getWindForSeat, profile
