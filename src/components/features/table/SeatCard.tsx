@@ -21,7 +21,9 @@ interface SeatCardProps {
 export default function SeatCard({ 
   index, 
   displayName, 
-  score, 
+  score,
+  wind,
+  windZh, 
   isDealer, 
   dealerStreak, 
   isGhost,
@@ -31,15 +33,6 @@ export default function SeatCard({
   onSelect,
   onClaim 
 }: SeatCardProps) {
-  
-  const winds = [
-    { zh: "東", en: "East" },
-    { zh: "南", en: "South" },
-    { zh: "西", en: "West" },
-    { zh: "北", en: "North" }
-  ];
-  
-  const currentWind = winds[index];
   
   return (
     <div 
@@ -65,8 +58,8 @@ export default function SeatCard({
       <div className="flex justify-between items-start z-10">
         <div className="flex flex-col">
           <div className={`flex items-center gap-1.5 font-black tracking-tight ${isDealer ? 'text-emerald-600' : 'text-zinc-400'}`}>
-            <span className="text-lg leading-none">{currentWind.zh}</span>
-            <span className="text-[10px] uppercase tracking-[0.1em] mt-0.5">{currentWind.en}</span>
+            <span className="text-lg leading-none">{windZh}</span>
+            <span className="text-[10px] uppercase tracking-[0.1em] mt-0.5">{wind}</span>
           </div>
         </div>
         <span className={`text-sm transition-all duration-500 ${isGhost ? 'grayscale opacity-10 scale-75' : 'grayscale-0 opacity-100 scale-100'}`}>🀄</span>
@@ -131,7 +124,7 @@ export default function SeatCard({
       <div className={`absolute -bottom-6 -right-2 text-[120px] font-black pointer-events-none transition-all duration-1000 select-none leading-none ${
         isDealer ? 'text-emerald-500/10 rotate-6 scale-110' : 'text-zinc-500/5 -rotate-6 scale-90'
       }`}>
-        {currentWind.zh}
+        {windZh}
       </div>
     </div>
   );

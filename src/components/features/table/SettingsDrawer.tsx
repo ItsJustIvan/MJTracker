@@ -1,6 +1,7 @@
 'use client'
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabaseClient';
+import HistoryDrawer from './HistoryDrawer';
 
 interface SettingsDrawerProps {
   isOpen: boolean;
@@ -9,15 +10,17 @@ interface SettingsDrawerProps {
   profile: any;
   matchingSeat: any; 
   isAdmin: boolean;
+  history: any[];
   onUpdate: (newName: string) => void;
   onCloseTable: () => Promise<void>;
   onOpenAuth: () => void;
 }
 
 export default function SettingsDrawer({ 
-  isOpen, onClose, user, profile, matchingSeat, isAdmin, onUpdate, onCloseTable, onOpenAuth 
+  isOpen, onClose, user, profile, matchingSeat, isAdmin, onUpdate, onCloseTable, onOpenAuth, history
 }: SettingsDrawerProps) {
   const [newName, setNewName] = useState('');
+  const [showHistory, setShowHistory] = useState(false);
   
   // If matchingSeat exists, they are physically at the table.
   const isSeated = !!matchingSeat;
@@ -30,7 +33,10 @@ export default function SettingsDrawer({
     const currentName = matchingSeat?.guest_name || profile?.display_name || '';
     setNewName(currentName);
   }, [profile, matchingSeat, isOpen]);
-
+// Close history when main drawer closes
+  useEffect(() => {
+    if (!isOpen) setShowHistory(false);
+  }, [isOpen]);
   /**
    * 2. Name Persistence Logic
    * Updates global profile if logged in, otherwise updates session-specific guest name.
@@ -160,6 +166,20 @@ export default function SettingsDrawer({
             )}
           </div>
 
+          {/* History */}
+<section className="space-y-3">
+  <label className="text-[10px] font-black uppercase text-zinc-400 tracking-widest block ml-1">
+    Statistics & History
+  </label>
+  <button 
+    onClick={() => setShowHistory(true)}
+    className="w-full p-4 bg-zinc-900 text-white rounded-2xl flex justify-between items-center group hover:bg-emerald-600 transition-all active:scale-[0.98]"
+  >
+    <span className="text-xs font-black uppercase tracking-tight">View Game Log</span>
+    <span className="text-lg group-hover:translate-x-1 transition-transform">→</span>
+  </button>
+</section>
+
           {/* Footer / Auth Status */}
           {user && (
             <div className="mt-auto pt-6 border-t border-zinc-100 space-y-4">
@@ -186,6 +206,13 @@ export default function SettingsDrawer({
           )}
         </div>
       </div>
+
+      {/* History Drawer */
+      <HistoryDrawer 
+        isOpen={showHistory} 
+        onClose={() => setShowHistory(false)} 
+        history={history}
+      />}
     </>
   );
 }

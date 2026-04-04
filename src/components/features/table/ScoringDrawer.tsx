@@ -66,6 +66,7 @@ export default function ScoringDrawer({
     onRecord({
       resultType: 'dead_hand',
       points: 0,
+      winnerIdx: null,
       loserIdx: null
     });
     onClose();
