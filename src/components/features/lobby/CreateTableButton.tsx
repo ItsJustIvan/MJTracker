@@ -3,35 +3,31 @@ import { useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { useRouter } from 'next/navigation';
 
-// 1. Define the props interface
 interface CreateTableButtonProps {
   userId?: string;
   authLoading: boolean;
 }
-// 2. Export the component as DEFAULT
+
 export default function CreateTableButton({ userId, authLoading }: CreateTableButtonProps) {
   const [isCreating, setIsCreating] = useState(false);
   const router = useRouter();
 
   const createTable = async (currentUserId: string | undefined) => {
-    
-const createTable = async (currentUserId: string) => {
     setIsCreating(true);
     
-    // We only send the minimum "Contract" data. 
-    // The Database Trigger handles: current_dealer_idx, prevalent_wind, hand_number,
-    // and creates the 4 session_players and 4 session_scores automatically.
+    // Fallback: If no user ID, we send null (Bucket A trigger handles the rest)
+    const creator = currentUserId || null;
+
     const { data, error } = await supabase
       .from('sessions')
       .insert([{ 
-        created_by: currentUserId,
-        status: 'active', // Optional: could also be a DB default
+        created_by: creator,
+        status: 'active',
         rules: {
           dealer_points_enabled: true,
           base_dealer_bonus: 1,
           streak_multiplier: 2
         }
-        // Note: NO dealer_idx or hand_number here. The DB Trigger handles it.
       }])
       .select('id')
       .single();
@@ -44,13 +40,12 @@ const createTable = async (currentUserId: string) => {
       setIsCreating(false);
     }
   };
-  };
 
   return (
     <button 
       onClick={() => createTable(userId)}
       disabled={isCreating || authLoading}
-      className="..."
+      className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-5 px-8 rounded-3xl transition-all active:scale-95 text-lg uppercase tracking-tight disabled:opacity-50"
     >
       {isCreating ? "CREATING..." : "START NEW TABLE"}
     </button>
