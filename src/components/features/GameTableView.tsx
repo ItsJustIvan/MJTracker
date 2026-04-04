@@ -1,57 +1,47 @@
 'use client'
 import React, { useState } from 'react';
+import { useTable } from '@/context/TableContext'; // 👈 The new single source of truth
 import SeatCard from './table/SeatCard';
 import ScoringDrawer from './table/ScoringDrawer';
 import SettingsDrawer from './table/SettingsDrawer'; 
 import AuthModal from '@/components/features/auth/AuthModal';
 import JoinModal from '@/components/features/lobby/JoinModal';
 
-interface GameTableViewProps {
-  sessionId: string;
-  game: any; 
-  user: any; 
-  isAdmin: boolean;
-}
-
-export default function GameTableView({ sessionId, game, user, isAdmin }: GameTableViewProps) {
-  
+export default function GameTableView() {
+  // 1. Hook into the Table Context
+  // We grab everything we need directly from the provider.
   const { 
+    sessionId,
     scores, 
     sessionPlayers, 
-    currentDealerIdx, 
     dealerStreak,
     tableData, 
     guestId,
-    setGuestId,
     recordHand, 
     claimSeat, 
     closeTable, 
     getWindForSeat,
-    profile
-  } = game;
+    profile,
+    history,
+    permissions, // isAdmin, isSeated, mySeatIndex, etc.
+    user         // Passed through from the Provider
+  } = useTable();
 
+  // 2. UI-only State
   const [isJoinModalOpen, setIsJoinModalOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false); 
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
-  
   const [winnerIdx, setWinnerIdx] = useState<number | null>(null);
   const [pendingSeatIndex, setPendingSeatIndex] = useState<number | null>(null);
 
-// 1. Define the Seats (Ghost Logic)
+  // 3. Stabilize Seats (Ghost Logic)
   const stabilizedSeats = [0, 1, 2, 3].map(idx => {
     const player = sessionPlayers?.find((p: any) => p.seat_index === idx);
-    
-    // A seat is a ghost if no record exists OR all identity fields are empty
     const isGhost = !player || (!player.profile_id && !player.guest_name && !player.guest_session_id);
     
-    // Identify if THIS player is the current user/guest
-    const isMySeat = !isGhost && (
-      (user && player.profile_id === user.id) || 
-      (guestId && player.guest_session_id === guestId)
-    );
-
-    console.log("🛠️ AUDIT 1 (Props):", { sessionId, hasGame: !!game });
+    // We use the helper from our Identity hook logic (via permissions)
+    const isMySeat = permissions.mySeatIndex === idx;
     
     return {
       index: idx,
@@ -63,157 +53,100 @@ export default function GameTableView({ sessionId, game, user, isAdmin }: GameTa
     };
   });
 
-  // 2. NOW we can find "mySeat" and "playerNames" because the list above is finished
   const mySeat = stabilizedSeats.find(s => s.isMySeat);
   const playerNames = stabilizedSeats.map(s => s.name);
 
-  // 3. Action Handlers
+  // 4. Action Handlers
   const handleOpenScoring = (idx: number) => {
     setWinnerIdx(idx);
     setIsDrawerOpen(true);
   };
 
-const handleInitiateClaim = (idx: number) => {
-  setPendingSeatIndex(idx);
-
-  // 1. If Logged In: Just claim/move immediately
-  if (user) {
-    claimSeat(idx);
-    return;
-  }
-
-  // 2. If Guest with existing Identity: Just move immediately
-  const hasLocalName = typeof window !== 'undefined' ? localStorage.getItem('mahjong_guest_name') : null;
-  const hasLocalId = typeof window !== 'undefined' ? localStorage.getItem('mahjong_guest_id') : null;
-
-  if (hasLocalId && hasLocalName) {
-    console.log("🚀 [Auto-Move]: Existing guest detected, moving to seat", idx);
-    claimSeat(idx); 
-    return;
-  }
-
-  // 3. Only if they are a "Fresh" Guest do we show the modal
-  setIsJoinModalOpen(true);
-};
-
-const handleLeaveSeat = async (idx: number) => {
-    if (window.confirm("Are you sure you want to vacate this seat?")) {
-      // 🎯 Refactor: We tell the hook to vacate this specific seat.
-      // We pass 'null' or a 'vacate' flag depending on how your hook is set up.
-      await game.claimSeat(idx, undefined, true); // Added 'isVacating' flag
-      
-      if (!user) {
-        localStorage.removeItem('mahjong_guest_id');
-        if (setGuestId) setGuestId(null);
-        setIsJoinModalOpen(false);
-      }
+  const handleInitiateClaim = (idx: number) => {
+    setPendingSeatIndex(idx);
+    if (user) {
+      claimSeat({ seatIndex: idx, userId: user.id, guestId });
+      return;
     }
-  };
-
-const handleRecordPayload = (payload: { 
-    resultType: 'win' | 'dead_hand' | 'adjustment', 
-    points: number, 
-    loserIdx: number | 'all' | null,
-    isAdjustment?: boolean
-  }) => {
-    // 🎯 The Goal: Pass raw data to the hook. 
-    // The hook will then call: supabase.rpc('record_hand_v1', {...})
-    
-    recordHand({
-      winnerIdx: winnerIdx, // Captured from state when card was clicked
-      loserIdx: payload.loserIdx, // 'all' or the specific seat index
-      points: payload.points,
-      resultType: payload.resultType,
-      isAdjustment: !!payload.isAdjustment
-    });
-
-    setIsDrawerOpen(false);
-    // 🧹 Delay the reset so the drawer animation finishes before the name disappears
-    setTimeout(() => setWinnerIdx(null), 500);
+    const hasLocalName = typeof window !== 'undefined' ? localStorage.getItem('mahjong_guest_name') : null;
+    if (guestId && hasLocalName) {
+      claimSeat({ seatIndex: idx, guestId, guestName: hasLocalName }); 
+      return;
+    }
+    setIsJoinModalOpen(true);
   };
 
   return (
-<div className="min-h-screen bg-white text-zinc-900 flex flex-col overflow-hidden">
-    <header className="px-6 py-4 border-b border-zinc-100 flex justify-between items-center bg-white z-10">
-      <div>
-        <h1 className="text-xl font-black tracking-tighter uppercase">
-          MJ<span className="text-emerald-600">.</span>Tracker
-        </h1>
-        <div className="flex items-center gap-2 mt-1">
-          <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">
-            {tableData?.vanity_name || 'Join Code'}:
-          </p>
-          <button 
-            onClick={() => {
-              const code = tableData?.short_code;
-              if (code) {
-                navigator.clipboard.writeText(code);
-                // Optional: You could trigger a small "Copied!" toast here
-              }
-            }}
-            className="text-[11px] font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100 hover:bg-emerald-100 active:scale-95 transition-all"
-          >
-            {tableData?.short_code?.toUpperCase() || "------"}
-          </button>
+    <div className="min-h-screen bg-white text-zinc-900 flex flex-col overflow-hidden">
+      {/* HEADER: Sync with TableData */}
+      <header className="px-6 py-4 border-b border-zinc-100 flex justify-between items-center bg-white z-10">
+        <div>
+          <h1 className="text-xl font-black tracking-tighter uppercase">
+            MJ<span className="text-emerald-600">.</span>Tracker
+          </h1>
+          <div className="flex items-center gap-2 mt-1">
+            <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">
+              {tableData?.vanity_name || 'Join Code'}:
+            </p>
+            <button 
+              onClick={() => tableData?.short_code && navigator.clipboard.writeText(tableData.short_code)}
+              className="text-[11px] font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100"
+            >
+              {tableData?.short_code?.toUpperCase() || "------"}
+            </button>
+          </div>
         </div>
-      </div>
-      
-      <button 
-        onClick={() => setIsSettingsModalOpen(true)}
-        className="w-10 h-10 flex items-center justify-center bg-zinc-50 rounded-xl text-zinc-400 border border-zinc-100 hover:bg-zinc-100 transition-colors"
-      >
-        ☰
+        
+        <button onClick={() => setIsSettingsModalOpen(true)} className="w-10 h-10 flex items-center justify-center bg-zinc-50 rounded-xl border border-zinc-100">
+          ☰
         </button>
       </header>
 
+      {/* MAIN GRID */}
       <main className="flex-grow p-4 md:p-8 overflow-y-auto bg-zinc-50/20">
         <div className="max-w-5xl mx-auto grid grid-cols-2 gap-4 h-full max-h-[600px]">
           {stabilizedSeats.map((seat) => {
             const windInfo = getWindForSeat(seat.index); 
-            
             return (
               <SeatCard 
                 key={seat.index}
-                index={seat.index}
-                player={seat.player}
+                {...seat} // Spreading stabilized seat data
                 displayName={seat.name}
-                score={seat.score}
                 wind={windInfo.label}
                 windZh={windInfo.zh}
                 isDealer={windInfo.isDealer}
                 dealerStreak={dealerStreak}
-                isGhost={seat.isGhost}
-                isMySeat={seat.isMySeat}
                 onSelect={() => handleOpenScoring(seat.index)}
                 onClaim={() => handleInitiateClaim(seat.index)}
-                isUserAlreadySeated={!!mySeat}
-                onLeave={() => handleLeaveSeat(seat.index)}
+                isUserAlreadySeated={permissions.isSeated}
+                onLeave={() => claimSeat({ seatIndex: seat.index, guestId, isVacating: true })}
               />
             );
           })}
         </div>
       </main>
 
+      {/* MODALS & DRAWERS */}
       <ScoringDrawer 
         isOpen={isDrawerOpen}
         onClose={() => setIsDrawerOpen(false)}
         playerNames={playerNames}
         winnerIdx={winnerIdx}
-        onRecord={handleRecordPayload}
+        onRecord={(payload) => {
+          recordHand({ ...payload, winnerIdx });
+          setIsDrawerOpen(false);
+        }}
         getWindForSeat={getWindForSeat}
-        canAuthFixMode={isAdmin || (user && tableData?.created_by === user.id)}      />
+        canAuthFixMode={permissions.isAdmin || (user && tableData?.created_by === user.id)} 
+      />
 
       <JoinModal 
         isOpen={isJoinModalOpen}
         isLoggedIn={!!user}
         onCancel={() => setIsJoinModalOpen(false)}
         onConfirm={(name) => {
-          claimSeat(pendingSeatIndex!, name); 
+          claimSeat({ seatIndex: pendingSeatIndex!, guestId, guestName: name }); 
           setIsJoinModalOpen(false);
-        }}
-        onSignup={() => {
-          setIsJoinModalOpen(false);
-          setIsAuthModalOpen(true);
         }}
       />
 
@@ -221,30 +154,21 @@ const handleRecordPayload = (payload: {
         isOpen={isAuthModalOpen} 
         onClose={() => setIsAuthModalOpen(false)}
         onSuccess={() => {
-          claimSeat(pendingSeatIndex!); 
+          claimSeat({ seatIndex: pendingSeatIndex!, userId: user?.id, guestId }); 
           setIsAuthModalOpen(false);
         }}
       />
 
       <SettingsDrawer 
-  isOpen={isSettingsModalOpen}
-  onClose={() => setIsSettingsModalOpen(false)}
-  user={user}            // Auth User
-  profile={profile}      // Profile data from hook
-  matchingSeat={mySeat}  // The stabilized seat object (index, player, name, etc.)
-  isAdmin={isAdmin}
-  onUpdate={(newName: string) => {
-    // If we have a seat, update it. If not, this shouldn't even be clickable.
-    if (mySeat) {
-      claimSeat(mySeat.index, newName);
-    }
-  }}
-  onCloseTable={closeTable}
-  onOpenAuth={() => {
-    setIsSettingsModalOpen(false);
-    setIsAuthModalOpen(true);
-  }}
-/>
+        isOpen={isSettingsModalOpen}
+        onClose={() => setIsSettingsModalOpen(false)}
+        user={user}
+        profile={profile}
+        matchingSeat={mySeat}
+        isAdmin={permissions.isAdmin}
+        history={history}
+        onCloseTable={closeTable}
+      />
     </div>
   );
 }
