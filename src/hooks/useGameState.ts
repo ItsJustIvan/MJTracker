@@ -4,17 +4,17 @@ import { supabase } from '@/lib/supabaseClient';
 
 export function useGameState(sessionId: string) {
   const [tableData, setTableData] = useState<any>(null);
-  const [status, setStatus] = useState<'active' | 'closed'>('active');
+  const [status, setStatus] = useState<'active' | 'closed' | 'archived'>('active');
   
-  // Derived state from tableData for easier access in UI
+  // 1. Derived state: Clean, typed access to the "Big Picture"
   const currentDealerIdx = tableData?.current_dealer_idx ?? 0;
   const dealerStreak = tableData?.dealer_streak ?? 0;
   const prevalentWind = tableData?.prevalent_wind ?? 0;
-  const handNumber = tableData?.hand_number ?? 1; // Defensive fallback
+  const handNumber = tableData?.hand_number ?? 1;
 
   /**
    * REFRESH SESSION STATE
-   * Pulls the "Big Picture" game state from the sessions table.
+   * The single source of truth for the "Current Hand" context.
    */
   const refreshSessionState = useCallback(async () => {
     if (!sessionId) return;
@@ -37,39 +37,11 @@ export function useGameState(sessionId: string) {
   }, [sessionId]);
 
   /**
-   * ACTION: RECORD HAND
-   * The primary state-changer for the game.
-   */
-  const recordHand = async (payload: {
-    winnerIdx: number | null;
-    loserIdx: number | 'all' | null;
-    points: number;
-    resultType: 'win' | 'dead_hand' | 'adjustment' | 'self_draw';
-  }) => {
-    if (status !== 'active') return;
-
-    const { error } = await supabase.rpc('record_hand', {
-      p_session_id: sessionId,
-      p_winner_idx: payload.winnerIdx,
-      p_loser_idx: payload.loserIdx?.toString() || (payload.resultType === 'dead_hand' ? null : 'all'),
-      p_points: payload.points || 0,
-      p_result_type: payload.resultType
-    });
-
-    if (error) {
-      console.error("🚫 [useGameState] Record Hand Error:", error.message);
-    } else {
-      // We don't refresh history/scores here; their respective hooks will 
-      // see the transaction and refresh themselves.
-      await refreshSessionState();
-    }
-  };
-
-  /**
    * UTILITY: GET WIND FOR SEAT
-   * Pure logic to determine a player's wind based on the current dealer.
+   * Logic to determine a player's wind based on current dealer.
+   * This stays here because it is a direct calculation of the state.
    */
-  const getWindForSeat = (seatIdx: number) => {
+  const getWindForSeat = useCallback((seatIdx: number) => {
     const windOffset = (seatIdx - currentDealerIdx + 4) % 4;
     const windData = [
       { label: 'East', zh: '東' },
@@ -78,11 +50,11 @@ export function useGameState(sessionId: string) {
       { label: 'North', zh: '北' }
     ];
     return { ...windData[windOffset], isDealer: windOffset === 0 };
-  };
+  }, [currentDealerIdx]);
 
   /**
    * SUBSCRIPTION
-   * Listens ONLY to the sessions table for updates.
+   * Listens for any UPDATE to the sessions table (dealer rotation, etc.)
    */
   useEffect(() => {
     refreshSessionState();
@@ -93,7 +65,10 @@ export function useGameState(sessionId: string) {
         schema: 'public', 
         table: 'sessions', 
         filter: `id=eq.${sessionId}` 
-      }, () => refreshSessionState())
+      }, () => {
+        console.log("🔄 [useGameState] Table state updated remotely...");
+        refreshSessionState();
+      })
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
@@ -106,9 +81,7 @@ export function useGameState(sessionId: string) {
     dealerStreak,
     prevalentWind,
     handNumber,
-    recordHand,
     getWindForSeat,
-    closeTable: async () => { await supabase.rpc('seal_session', { p_session_id: sessionId }); },
-    refreshSessionState
+    refreshSessionState // Exported so ScoringActions can trigger a manual re-fetch
   };
 }
