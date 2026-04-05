@@ -4,6 +4,16 @@ import { RuleToggles } from './RuleToggles';
 import { PointGrid } from './PointGrid';
 import { ParticipantSelector } from './ParticipantSelector'; // Assuming you have the code from my previous response
 
+interface ScoringDrawerProps {
+  isOpen: boolean;
+  onClose: () => void;
+  canAuthFixMode: boolean;
+  playerNames: string[];
+  winnerIdx: number | null;
+  onRecord: (payload: any) => void;
+  getWindForSeat: (idx: number) => { label: string; isDealer: boolean };
+}
+
 export default function ScoringDrawer({ 
   isOpen, onClose, canAuthFixMode, playerNames, winnerIdx, onRecord, getWindForSeat 
 }: any) {
@@ -71,6 +81,7 @@ export default function ScoringDrawer({
             selectedLoser={selectedLoser} 
             onSelect={setSelectedLoser} 
             isAdjustment={isAdjustment} 
+            getWindForSeat={getWindForSeat}
           />
 
           {/* 3. The Rules Toggles */}

@@ -7,6 +7,14 @@ import SettingsDrawer from './table/SettingsDrawer';
 import AuthModal from '@/components/features/auth/AuthModal';
 import JoinModal from '@/components/features/lobby/JoinModal';
 
+  interface ScoringPayload {
+  winnerIdx: number | null;
+  loserIdx: number | 'all' | null;
+  points: number;
+  resultType: 'win' | 'dead_hand' | 'adjustment';
+  isDealerPointsOn: boolean;
+}
+
 export default function GameTableView() {
   // 1. Hook into the Table Context
   const { 
@@ -149,7 +157,7 @@ const handleInitiateClaim = (idx: number) => {
         onClose={() => setIsDrawerOpen(false)}
         playerNames={playerNames}
         winnerIdx={winnerIdx}
-        onRecord={(payload) => {
+        onRecord={(payload: ScoringPayload) => {
           recordHand({ ...payload, winnerIdx });
           setIsDrawerOpen(false);
         }}
