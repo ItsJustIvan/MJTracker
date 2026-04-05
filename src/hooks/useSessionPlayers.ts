@@ -37,35 +37,36 @@ export function useSessionPlayers(sessionId: string) {
 
   /**
    * ACTION: CLAIM / MOVE / LEAVE
-   * Calls the Bucket B RPC. This logic handles:
+   * Calls the v3 RPC. This logic now handles:
    * 1. Sitting in an empty ghost seat.
-   * 2. Moving from Seat 0 to Seat 2 (and vacating 0).
-   * 3. Leaving the table entirely.
+   * 2. Moving from Seat 0 to Seat 2 (swapping points and vacating 0).
+   * 3. Identity priority (Profile > Guest).
    */
   const claimSeat = async (params: {
     seatIndex: number;
     userId?: string | null;
     guestId: string | null;
-    guestName?: string;
+    guestName?: string | null;
     isVacating?: boolean;
   }) => {
     const { seatIndex, userId, guestId, guestName, isVacating = false } = params;
 
-    const { error } = await supabase.rpc('claim_seat_v2', {
+    // 🚀 Calling v3 to enable point portability and atomic swaps
+    const { error } = await supabase.rpc('claim_seat_v3', {
       p_session_id: sessionId,
       p_seat_index: seatIndex,
       p_profile_id: userId || null,
       p_guest_session_id: guestId,
-      p_guest_name: guestName || "Guest",
+      p_guest_name: guestName || null,
       p_is_vacating: isVacating
     });
 
     if (error) {
       console.error("🚫 [useSessionPlayers] Seating Error:", error.message);
-      return { success: false, error };
+      return { success: false, error: error.message };
     }
 
-    // Realtime will usually catch this, but we refresh for immediate UI snappiness
+    // refreshPlayers() is called via Realtime, but this ensures a snappy local update
     await refreshPlayers();
     return { success: true };
   };

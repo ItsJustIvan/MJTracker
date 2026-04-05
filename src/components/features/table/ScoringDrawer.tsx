@@ -8,7 +8,6 @@ interface ScoringDrawerProps {
   canAuthFixMode: boolean;
   playerNames: string[];
   winnerIdx: number | null;
-  // 🗝️ Updated Payload: Includes isAdjustment flag
   onRecord: (payload: { 
     resultType: 'win' | 'dead_hand' | 'adjustment', 
     points: number, 

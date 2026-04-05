@@ -1,6 +1,6 @@
 'use client'
 import React, { useState } from 'react';
-import { useTable } from '@/context/TableContext'; // 👈 The new single source of truth
+import { useTable } from '@/context/TableContext';
 import SeatCard from './table/SeatCard';
 import ScoringDrawer from './table/ScoringDrawer';
 import SettingsDrawer from './table/SettingsDrawer'; 
@@ -9,9 +9,7 @@ import JoinModal from '@/components/features/lobby/JoinModal';
 
 export default function GameTableView() {
   // 1. Hook into the Table Context
-  // We grab everything we need directly from the provider.
   const { 
-    sessionId,
     scores, 
     sessionPlayers, 
     dealerStreak,
@@ -23,8 +21,8 @@ export default function GameTableView() {
     getWindForSeat,
     profile,
     history,
-    permissions, // isAdmin, isSeated, mySeatIndex, etc.
-    user         // Passed through from the Provider
+    permissions, 
+    user 
   } = useTable();
 
   // 2. UI-only State
@@ -39,8 +37,6 @@ export default function GameTableView() {
   const stabilizedSeats = [0, 1, 2, 3].map(idx => {
     const player = sessionPlayers?.find((p: any) => p.seat_index === idx);
     const isGhost = !player || (!player.profile_id && !player.guest_name && !player.guest_session_id);
-    
-    // We use the helper from our Identity hook logic (via permissions)
     const isMySeat = permissions.mySeatIndex === idx;
     
     return {
@@ -56,29 +52,49 @@ export default function GameTableView() {
   const mySeat = stabilizedSeats.find(s => s.isMySeat);
   const playerNames = stabilizedSeats.map(s => s.name);
 
-  // 4. Action Handlers
+  // 4. Action Handlers (Protected by isTableClosed)
   const handleOpenScoring = (idx: number) => {
+    if (permissions.isTableClosed) return; // 🔒 Guard
     setWinnerIdx(idx);
     setIsDrawerOpen(true);
   };
 
-  const handleInitiateClaim = (idx: number) => {
-    setPendingSeatIndex(idx);
-    if (user) {
-      claimSeat({ seatIndex: idx, userId: user.id, guestId });
-      return;
-    }
-    const hasLocalName = typeof window !== 'undefined' ? localStorage.getItem('mahjong_guest_name') : null;
-    if (guestId && hasLocalName) {
-      claimSeat({ seatIndex: idx, guestId, guestName: hasLocalName }); 
-      return;
-    }
-    setIsJoinModalOpen(true);
-  };
+const handleInitiateClaim = (idx: number) => {
+  if (permissions.isTableClosed) return;
+
+  setPendingSeatIndex(idx);
+
+  // 1. LOGGED IN USER: Move immediately
+  if (user?.id) {
+    claimSeat({ 
+      seatIndex: idx, 
+      userId: user.id, 
+      guestId: guestId 
+    });
+    return;
+  }
+
+  // 2. EXISTING GUEST (The Fix): 
+  // If they are already seated, we KNOW they have a name and ID.
+  // We should move them without showing the modal.
+  if (permissions.isSeated && guestId) {
+    const savedName = typeof window !== 'undefined' ? localStorage.getItem('mahjong_guest_name') : 'Guest';
+    
+    claimSeat({ 
+      seatIndex: idx, 
+      guestId: guestId, 
+      guestName: savedName 
+    });
+    return;
+  }
+
+  // 3. FRESH VISITOR: Only show modal if they aren't already in a seat
+  setIsJoinModalOpen(true);
+};
 
   return (
     <div className="min-h-screen bg-white text-zinc-900 flex flex-col overflow-hidden">
-      {/* HEADER: Sync with TableData */}
+      {/* HEADER */}
       <header className="px-6 py-4 border-b border-zinc-100 flex justify-between items-center bg-white z-10">
         <div>
           <h1 className="text-xl font-black tracking-tighter uppercase">
@@ -110,15 +126,16 @@ export default function GameTableView() {
             return (
               <SeatCard 
                 key={seat.index}
-                {...seat} // Spreading stabilized seat data
+                {...seat}
+                isTableClosed={permissions.isTableClosed}
                 displayName={seat.name}
                 wind={windInfo.label}
                 windZh={windInfo.zh}
                 isDealer={windInfo.isDealer}
                 dealerStreak={dealerStreak}
+                isUserAlreadySeated={permissions.isSeated}
                 onSelect={() => handleOpenScoring(seat.index)}
                 onClaim={() => handleInitiateClaim(seat.index)}
-                isUserAlreadySeated={permissions.isSeated}
                 onLeave={() => claimSeat({ seatIndex: seat.index, guestId, isVacating: true })}
               />
             );
@@ -162,6 +179,10 @@ export default function GameTableView() {
       <SettingsDrawer 
         isOpen={isSettingsModalOpen}
         onClose={() => setIsSettingsModalOpen(false)}
+        onOpenAuth={() => {
+    setIsSettingsModalOpen(false); // Close settings first for better UX
+    setIsAuthModalOpen(true);      // Open the Login modal
+  }}
         user={user}
         profile={profile}
         matchingSeat={mySeat}
