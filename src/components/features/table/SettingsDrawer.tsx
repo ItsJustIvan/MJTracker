@@ -14,10 +14,11 @@ interface SettingsDrawerProps {
   onUpdate: (newName: string) => void;
   onCloseTable: () => Promise<void>;
   onOpenAuth: () => void;
+  onUndo: () => Promise<{ success: boolean; error?: any }>;
 }
 
 export default function SettingsDrawer({ 
-  isOpen, onClose, user, profile, matchingSeat, isAdmin, onUpdate, onCloseTable, onOpenAuth, history
+  isOpen, onClose, user, profile, matchingSeat, isAdmin, onUpdate, onCloseTable, onOpenAuth, history, onUndo
 }: SettingsDrawerProps) {
   const [newName, setNewName] = useState('');
   const [showHistory, setShowHistory] = useState(false);
@@ -212,6 +213,7 @@ export default function SettingsDrawer({
         isOpen={showHistory} 
         onClose={() => setShowHistory(false)} 
         history={history}
+        onUndo={onUndo}
       />}
     </>
   );

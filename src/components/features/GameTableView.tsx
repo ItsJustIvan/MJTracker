@@ -29,6 +29,7 @@ export default function GameTableView() {
     getWindForSeat,
     profile,
     history,
+    revertLastHand,
     permissions, 
     user 
   } = useTable();
@@ -204,6 +205,7 @@ const handleInitiateClaim = (idx: number) => {
         onUpdate={() => {
           console.log("Settings updated");
         }}
+        onUndo={revertLastHand}
       />
     </div>
   );

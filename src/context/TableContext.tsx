@@ -15,13 +15,13 @@ export function TableProvider({ sessionId, user, profile, children }: any) {
   const gameState = useGameState(sessionId);
   const players = useSessionPlayers(sessionId);
   const scores = useSessionScores(sessionId);
-  const history = useSessionHistory(sessionId);
+  const historyData = useSessionHistory(sessionId);
   const scoring = useScoringActions(
-  sessionId, 
-  gameState.currentDealerIdx, 
-  gameState.dealerStreak,
-  gameState.refreshSessionState
-);
+    sessionId, 
+    gameState.currentDealerIdx, 
+    gameState.dealerStreak,
+    gameState.refreshSessionState
+  );
 
   // 2. NOW run the Migration Effect
   useEffect(() => {
@@ -58,7 +58,7 @@ const permissions = useMemo(() => {
     ...gameState,
     ...players,
     ...scores,
-    ...history,
+    ...historyData,
     ...scoring,
     permissions
   };
