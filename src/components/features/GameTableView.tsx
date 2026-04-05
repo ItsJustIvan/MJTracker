@@ -173,6 +173,10 @@ const handleInitiateClaim = (idx: number) => {
           claimSeat({ seatIndex: pendingSeatIndex!, guestId, guestName: name }); 
           setIsJoinModalOpen(false);
         }}
+        onSignup={() => {
+          setIsJoinModalOpen(false);
+          setIsAuthModalOpen(true);
+        }}
       />
 
       <AuthModal 
@@ -188,15 +192,18 @@ const handleInitiateClaim = (idx: number) => {
         isOpen={isSettingsModalOpen}
         onClose={() => setIsSettingsModalOpen(false)}
         onOpenAuth={() => {
-    setIsSettingsModalOpen(false); // Close settings first for better UX
-    setIsAuthModalOpen(true);      // Open the Login modal
-  }}
+          setIsSettingsModalOpen(false); // Close settings first for better UX
+          setIsAuthModalOpen(true);      // Open the Login modal
+        }}
         user={user}
         profile={profile}
         matchingSeat={mySeat}
         isAdmin={permissions.isAdmin}
         history={history}
         onCloseTable={closeTable}
+        onUpdate={() => {
+          console.log("Settings updated");
+        }}
       />
     </div>
   );
