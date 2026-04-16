@@ -53,6 +53,25 @@ export function useGameState(sessionId: string) {
   }, [currentDealerIdx]);
 
   /**
+   * closeTable
+   */
+  const closeTable = useCallback(async () => {
+    if (!sessionId) return;
+    
+    const { error } = await supabase.rpc('seal_session', { 
+      p_session_id: sessionId 
+    });
+
+    if (error) {
+      console.error("🚫 [useGameState] Close Table Error:", error.message);
+      return { success: false, error };
+    }
+    
+    // Status will update automatically via the Postgres subscription
+    return { success: true };
+  }, [sessionId]);
+
+  /**
    * SUBSCRIPTION
    * Listens for any UPDATE to the sessions table (dealer rotation, etc.)
    */
@@ -82,6 +101,7 @@ export function useGameState(sessionId: string) {
     prevalentWind,
     handNumber,
     getWindForSeat,
-    refreshSessionState // Exported so ScoringActions can trigger a manual re-fetch
+    refreshSessionState,
+    closeTable
   };
 }
