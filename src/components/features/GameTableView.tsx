@@ -4,8 +4,8 @@ import { useTable } from '@/context/TableContext';
 import SeatCard from './table/SeatCard';
 import ScoringDrawer from './table/scoring/ScoringDrawer';
 import SettingsDrawer from './table/SettingsDrawer'; 
-import AuthModal from '@/components/features/auth/AuthModal';
-import JoinModal from '@/components/features/lobby/JoinModal';
+import AuthModal from '@/modules/auth/components/AuthModal';
+import JoinModal from '@/modules/auth/components/JoinModal';
 
   interface ScoringPayload {
   winnerIdx: number | null;
