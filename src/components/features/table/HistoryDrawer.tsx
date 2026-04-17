@@ -96,9 +96,9 @@ export default function HistoryDrawer({ isOpen, onClose, history, onUndo }: Hist
                     {/* Big Score */}
                     <div className="text-right">
                       <p className={`text-2xl font-black italic tracking-tighter ${
-                        round.net_win_amount > 0 ? 'text-white' : 'text-zinc-700'
+                        round.points > 0 ? 'text-white' : 'text-zinc-700'
                       }`}>
-                        {round.net_win_amount > 0 ? `+${round.net_win_amount}` : '0'}
+                        {round.points > 0 ? `+${round.points}` : '0'}
                       </p>
                     </div>
                   </div>
