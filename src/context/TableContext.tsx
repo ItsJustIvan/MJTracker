@@ -1,16 +1,18 @@
 'use client'
-import React, { createContext, useContext, useMemo, useEffect } from 'react'; // 👈 Added useEffect
+import React, { createContext, useContext, useMemo, useEffect } from 'react';
 import { useSessionIdentity } from '@/hooks/useSessionIdentity';
 import { useGameState } from '@/hooks/useGameState';
 import { useSessionPlayers } from '@/hooks/useSessionPlayers';
 import { useSessionScores } from '@/hooks/useSessionScores';
 import { useSessionHistory } from '@/hooks/useSessionHistory';
 import { useScoringActions } from '@/hooks/useScoringActions';
+// 1. IMPORT YOUR NEW SERVICE
+import { TableService } from '@/modules/table/services/tableService';
 
 const TableContext = createContext<any>(null);
 
 export function TableProvider({ sessionId, user, profile, children }: any) {
-  // 1. Initialize all 5 pillars FIRST
+  // Pillars
   const identity = useSessionIdentity(sessionId, user);
   const gameState = useGameState(sessionId);
   const players = useSessionPlayers(sessionId);
@@ -23,33 +25,49 @@ export function TableProvider({ sessionId, user, profile, children }: any) {
     gameState.refreshSessionState
   );
 
-  // 2. NOW run the Migration Effect
+  // 2. THE ONLY MIGRATION EFFECT YOU NEED
   useEffect(() => {
-    // Check if we have both a Guest ID and a Logged-in User
-    if (user?.id && identity.guestId) {
-      console.log("🔄 [Identity]: User logged in, triggering migration...");
-      identity.handleIdentityUpgrade();
-    }
-  }, [user?.id, identity.guestId, identity.handleIdentityUpgrade]); // 👈 Added dependencies
+    const runMigration = async () => {
+      // Condition: We have a logged-in user AND a leftover guest identity
+      if (user?.id && identity.guestId) {
+        console.log("🔄 [TableContext]: Identity upgrade detected. Migrating...");
+        
+        try {
+          // A. Call the stateless service
+          await TableService.migrateGuestToPlayer(identity.guestId, user.id);
+          
+          // B. Wipe the guest data from localStorage/State
+          // This prevents the effect from running again
+          identity.clearGuestIdentity();
+          
+          // C. Refresh UI immediately
+          if (players.refreshPlayers) await players.refreshPlayers();
+          if (gameState.refreshSessionState) await gameState.refreshSessionState();
+          
+          console.log("✅ [TableContext]: Migration successful.");
+        } catch (err) {
+          console.error("🚫 [TableContext]: Migration failed", err);
+        }
+      }
+    };
 
-  // 3. Create a combined "Permissions" object
-const permissions = useMemo(() => {
-    // Determine if the table is in a read-only state
+    runMigration();
+  }, [user?.id, identity.guestId, identity, players, gameState]); 
+
+  // 3. Permissions Calculation
+  const permissions = useMemo(() => {
     const isClosed = gameState.status === 'closed' || gameState.status === 'archived';
+    const myPlayer = players.sessionPlayers.find((p: any) => identity.isMySeat(p));
 
     return {
       isAdmin: profile?.is_admin || false,
-      isSeated: !!players.sessionPlayers.find(p => identity.isMySeat(p)),
-      mySeatIndex: players.sessionPlayers.find(p => identity.isMySeat(p))?.seat_index ?? null,
-      
-      // canRecord is false if the table is closed
+      isSeated: !!myPlayer,
+      mySeatIndex: myPlayer?.seat_index ?? null,
       canRecord: gameState.status === 'active' && !isClosed,
-      
-      // Export the explicit flag for UI usage (SeatAction, etc.)
       isTableClosed: isClosed 
     };
   }, [players.sessionPlayers, identity, gameState.status, profile]);
-  // 4. Bundle everything
+
   const value = {
     sessionId,
     user,
