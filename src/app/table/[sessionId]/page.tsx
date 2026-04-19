@@ -25,17 +25,12 @@ export default function MahjongTablePage({ params }: { params: Promise<{ session
 
   // 4. Provide the Table Context to all children
   return (
-    <TableProvider 
-      sessionId={sessionId} 
-      user={user} 
-      profile={profile}
-    >
+
       <div className="min-h-screen bg-white selection:bg-emerald-100">
         {/* Notice we no longer pass 'game={game}'! 
            GameTableView will now pull data internally using useTable()
         */}
         <GameTableView /> 
       </div>
-    </TableProvider>
   );
 }
