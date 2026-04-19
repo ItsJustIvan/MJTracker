@@ -2,6 +2,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import BaseModal from '@/components/shared/ui/BaseModal';
+import { useRouter } from 'next/navigation';
 
 interface UserMenuProps {
   user: any;
@@ -9,9 +10,19 @@ interface UserMenuProps {
 }
 
 export default function UserMenu({ user, profile }: UserMenuProps) {
+  const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
   const [activeModal, setActiveModal] = useState<'profile' | 'history' | 'league' | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  
+  // State for editing
+  const [displayName, setDisplayName] = useState(profile?.display_name || '');
+  const [isSaving, setIsSaving] = useState(false);
+
+  // Keep displayName in sync if the profile prop changes
+  useEffect(() => {
+    setDisplayName(profile?.display_name || '');
+  }, [profile]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -26,6 +37,26 @@ export default function UserMenu({ user, profile }: UserMenuProps) {
   const handleLogout = async () => {
     await supabase.auth.signOut();
     window.location.href = '/'; 
+  };
+
+  // --- THE MISSING FUNCTION ---
+  const handleUpdateProfile = async () => {
+    if (!user?.id || !displayName.trim()) return;
+    
+    setIsSaving(true);
+    const { error } = await supabase
+      .from('profiles')
+      .update({ display_name: displayName.trim() })
+      .eq('id', user.id);
+
+    if (error) {
+      console.error('Update failed:', error.message);
+      alert('Failed to update profile');
+    } else {
+      setActiveModal(null);
+      router.refresh(); // Tells Next.js to update data on the page
+    }
+    setIsSaving(false);
   };
 
   if (!user) return null;
@@ -89,6 +120,7 @@ export default function UserMenu({ user, profile }: UserMenuProps) {
 
       {/* --- MODALS FOR FUNCTIONALITY --- */}
       
+      {/* 1. EDIT PROFILE MODAL (FIXED) */}
       <BaseModal 
         isOpen={activeModal === 'profile'} 
         onClose={() => setActiveModal(null)}
@@ -98,16 +130,24 @@ export default function UserMenu({ user, profile }: UserMenuProps) {
           <div className="space-y-1">
             <label className="text-[10px] font-black uppercase text-zinc-400 ml-1">Display Name</label>
             <input 
-              defaultValue={profile?.display_name}
-              className="w-full p-4 rounded-xl bg-zinc-50 border-2 border-zinc-100 focus:border-emerald-500 outline-none font-bold"
+              value={displayName}
+              onChange={(e) => setDisplayName(e.target.value)}
+              placeholder="Enter name..."
+              disabled={isSaving}
+              className="w-full p-4 rounded-xl bg-zinc-50 border-2 border-zinc-100 focus:border-emerald-500 outline-none font-bold disabled:opacity-50"
             />
           </div>
-          <button className="w-full bg-zinc-900 text-white p-4 rounded-xl font-bold uppercase tracking-widest text-xs">
-            Save Changes
+          <button 
+            onClick={handleUpdateProfile}
+            disabled={isSaving || !displayName.trim()}
+            className="w-full bg-zinc-900 text-white p-4 rounded-xl font-bold uppercase tracking-widest text-xs active:scale-95 transition-all disabled:opacity-50 disabled:grayscale"
+          >
+            {isSaving ? 'Saving...' : 'Save Changes'}
           </button>
         </div>
       </BaseModal>
 
+      {/* 2. CAREER HISTORY */}
       <BaseModal 
         isOpen={activeModal === 'history'} 
         onClose={() => setActiveModal(null)}
@@ -120,6 +160,7 @@ export default function UserMenu({ user, profile }: UserMenuProps) {
         </div>
       </BaseModal>
 
+      {/* 3. LEAGUE STANDINGS */}
       <BaseModal 
         isOpen={activeModal === 'league'} 
         onClose={() => setActiveModal(null)}

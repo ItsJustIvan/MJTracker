@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { useUserSessions } from '@/hooks/useUserSessions';
+import { useUserStats } from '@/hooks/useUserStats'; // Import our new hook
 import JoinTableModal from '@/components/features/lobby/TableDiscoveryModal';
 import CreateTableButton from '@/components/features/lobby/CreateTableButton';
 
@@ -10,63 +11,85 @@ export default function DashboardPage() {
   const router = useRouter();
   const { user, profile, loading: authLoading } = useAuthSession();
   const { activeSessions, loading: sessionsLoading } = useUserSessions(user?.id);
+  
+  // Use our new hook
+  const { stats, selectedSeason, setSelectedSeason, availableSeasons } = useUserStats(user?.id);
+  
   const [isJoinModalOpen, setIsJoinModalOpen] = useState(false);
 
   return (
     <main className="min-h-screen bg-zinc-50/50 p-6">
       <div className="max-w-md mx-auto pt-12 space-y-8">
         
-        {/* --- WELCOME HEADER --- */}
-        <header className="space-y-1">
-          <p className="text-[10px] font-black text-emerald-600 uppercase tracking-[0.2em]">
-            Player Dashboard
-          </p>
-          <h1 className="text-4xl font-black text-zinc-900 tracking-tighter">
-            Welcome back, <br/>
-            <span className="text-zinc-500">{profile?.display_name || user?.email?.split('@')[0] || 'Player'}</span>
-          </h1>
+        {/* --- HEADER --- */}
+        <header className="flex justify-between items-start">
+          <div className="space-y-1">
+            <p className="text-[10px] font-black text-emerald-600 uppercase tracking-[0.2em]">Dashboard</p>
+            <h1 className="text-4xl font-black text-zinc-900 tracking-tighter">
+              Hello, <span className="text-zinc-500">{profile?.display_name || 'Player'}</span>
+            </h1>
+          </div>
+          
+          {/* SEASON SELECTOR DROPDOWN */}
+          <select 
+            value={selectedSeason}
+            onChange={(e) => setSelectedSeason(e.target.value)}
+            className="mt-2 bg-white border border-zinc-200 rounded-xl px-3 py-2 text-[10px] font-black uppercase tracking-wider shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
+          >
+            <option value="lifetime">Lifetime</option>
+            {availableSeasons.map(month => (
+              <option key={month} value={month}>
+                {new Date(month).toLocaleDateString('en-US', { month: 'short', year: '2-digit' })}
+              </option>
+            ))}
+          </select>
         </header>
-        {/* 🗝️ RESUME SESSION SECTION (Now clean and logic-free) */}
-        {!sessionsLoading && activeSessions.length > 0 && (
-          <section className="space-y-3">
-             <h3 className="text-[10px] font-black text-emerald-600 uppercase tracking-widest ml-1">
-               Resume Active Game
-             </h3>
-             {activeSessions.map(session => (
-               <button 
-                 key={session.id}
-                 onClick={() => router.push(`/table/${session.id}`)}
-                 className="w-full bg-white p-6 rounded-[2rem] border-2 border-emerald-100 flex justify-between items-center group active:scale-[0.98] transition-all"
-               >
-                 <div>
-                   <p className="text-xl font-black text-zinc-900">{session.short_code}</p>
-                   <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Table UUID: {session.id.slice(0,8)}...</p>
-                 </div>
-                 <div className="w-10 h-10 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-600 group-hover:bg-emerald-600 group-hover:text-white transition-colors">
-                   →
-                 </div>
-               </button>
-             ))}
-          </section>
-        )}
 
-        {/* --- STATS PLACEHOLDER BENTO --- */}
-        <section className="grid grid-cols-2 gap-4">
-          <div className="bg-white p-6 rounded-[2rem] border border-zinc-100 shadow-sm">
-            <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-1">Lifetime Wins</p>
-            <p className="text-2xl font-black text-zinc-300 italic">--</p>
+        {/* --- TROPHY BENTO GRID --- */}
+        <section className="grid grid-cols-2 gap-3">
+          {/* Tile 1: Highest Hand */}
+          <div className="bg-white p-5 rounded-[2rem] border border-zinc-100 shadow-sm relative overflow-hidden group">
+            <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-1">Highest Hand</p>
+            <p className="text-3xl font-black text-zinc-900 tracking-tighter">
+              {stats?.maxHand || 0}<span className="text-xs text-zinc-300 ml-1">pts</span>
+            </p>
+            <div className="absolute -right-2 -bottom-2 text-4xl opacity-[0.03] group-hover:scale-110 transition-transform">🀄</div>
           </div>
-          <div className="bg-white p-6 rounded-[2rem] border border-zinc-100 shadow-sm">
-            <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-1">Rank</p>
-            <p className="text-2xl font-black text-zinc-300 italic">--</p>
+
+          {/* Tile 2: Biggest Payout */}
+          <div className="bg-white p-5 rounded-[2rem] border border-zinc-100 shadow-sm relative overflow-hidden group">
+            <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-1">Max Payout</p>
+            <p className="text-3xl font-black text-emerald-600 tracking-tighter">
+              +{stats?.maxPayout || 0}
+            </p>
+            <div className="absolute -right-2 -bottom-2 text-4xl opacity-[0.03] group-hover:scale-110 transition-transform">💰</div>
           </div>
-          <div className="col-span-2 bg-zinc-900 p-6 rounded-[2rem] relative overflow-hidden group">
-             <div className="relative z-10">
-                <p className="text-[10px] font-black text-emerald-400 uppercase tracking-widest mb-1">League Progress</p>
-                <p className="text-sm font-bold text-white opacity-50">Career stats & history coming soon.</p>
+
+          {/* Tile 3: Total Points (Wide) */}
+          <div className="col-span-2 bg-zinc-900 p-6 rounded-[2.5rem] relative overflow-hidden group shadow-xl">
+             <div className="relative z-10 flex justify-between items-end">
+                <div>
+                  <p className="text-[10px] font-black text-emerald-400 uppercase tracking-widest mb-1">Accumulated Points</p>
+                  <p className="text-4xl font-black text-white tracking-tighter">
+                    {(stats?.totalPoints || 0).toLocaleString()}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-1">Games</p>
+                  <p className="text-xl font-black text-white leading-none">{stats?.gamesPlayed || 0}</p>
+                </div>
              </div>
-             {/* Decorative element */}
-             <div className="absolute -right-4 -bottom-4 text-6xl opacity-10 group-hover:rotate-12 transition-transform">🀄</div>
+             {/* Subtle Glow Effect */}
+             <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 blur-[50px] rounded-full" />
+          </div>
+
+          {/* Tile 4: Max Streak (Optional/New) */}
+          <div className="col-span-2 bg-white p-4 rounded-2xl border border-dashed border-zinc-200 flex justify-between items-center px-6">
+            <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Best Dealer Streak</p>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-black text-zinc-900">{stats?.maxStreak || 0} Wins</span>
+              <div className="w-2 h-2 rounded-full bg-orange-500 animate-pulse" />
+            </div>
           </div>
         </section>
 
