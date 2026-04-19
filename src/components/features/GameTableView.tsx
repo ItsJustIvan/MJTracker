@@ -103,30 +103,42 @@ const handleInitiateClaim = (idx: number) => {
 
   return (
     <div className="min-h-screen bg-white text-zinc-900 flex flex-col overflow-hidden">
-      {/* HEADER */}
-      <header className="px-6 py-4 border-b border-zinc-100 flex justify-between items-center bg-white z-10">
-        <div>
-          <h1 className="text-xl font-black tracking-tighter uppercase">
-            MJ<span className="text-emerald-600">.</span>Tracker
-          </h1>
-          <div className="flex items-center gap-2 mt-1">
-            <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">
-              {tableData?.vanity_name || 'Join Code'}:
-            </p>
-            <button 
+{/* HEADER */}
+<header className="px-6 py-4 border-b border-zinc-100 flex justify-between items-center bg-white z-10">
+  <div className="flex items-center gap-4">
+    {/* EXIT TO LOBBY BUTTON */}
+    <button 
+      onClick={() => window.location.href = '/dashboard'}
+      className="p-2 -ml-2 text-zinc-400 hover:text-zinc-900 transition-colors"
+      title="Back to Dashboard"
+    >
+      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+        <path d="m15 18-6-6 6-6"/>
+      </svg>
+    </button>
+
+    <div>
+      <h1 className="text-xl font-black tracking-tighter uppercase leading-none">
+        MJ<span className="text-emerald-600">.</span>Tracker
+      </h1>
+      <div className="flex items-center gap-2 mt-1">
+        <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">
+          {tableData?.vanity_name || 'Join Code'}:
+        </p>
+                    <button 
               onClick={() => tableData?.short_code && navigator.clipboard.writeText(tableData.short_code)}
               className="text-[11px] font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100"
             >
               {tableData?.short_code?.toUpperCase() || "------"}
             </button>
-          </div>
-        </div>
-        
-        <button onClick={() => setIsSettingsModalOpen(true)} className="w-10 h-10 flex items-center justify-center bg-zinc-50 rounded-xl border border-zinc-100">
-          ☰
-        </button>
-      </header>
-
+      </div>
+    </div>
+  </div>
+  
+  <button onClick={() => setIsSettingsModalOpen(true)} className="...">
+    ☰
+  </button>
+</header>
       {/* MAIN GRID */}
       <main className="flex-grow p-4 md:p-8 overflow-y-auto bg-zinc-50/20">
         <div className="max-w-5xl mx-auto grid grid-cols-2 gap-4 h-full max-h-[600px]">
@@ -180,14 +192,30 @@ const handleInitiateClaim = (idx: number) => {
         }}
       />
 
-      <AuthModal 
-        isOpen={isAuthModalOpen} 
-        onClose={() => setIsAuthModalOpen(false)}
-        onSuccess={() => {
-          claimSeat({ seatIndex: pendingSeatIndex!, userId: user?.id, guestId }); 
-          setIsAuthModalOpen(false);
-        }}
-      />
+<AuthModal 
+  isOpen={isAuthModalOpen} 
+  onClose={() => setIsAuthModalOpen(false)}
+  onSuccess={async () => {
+    // 1. If they were already in a guest seat, migrate it to their new Profile
+    if (guestId && user?.id) {
+      await supabase.rpc('migrate_guest_to_player', {
+        p_guest_session_id: guestId,
+        p_profile_id: user.id
+      });
+    }
+
+    // 2. If they weren't seated but were 'pending' a seat click:
+    if (pendingSeatIndex !== null) {
+      claimSeat({ 
+        seatIndex: pendingSeatIndex, 
+        userId: user?.id, 
+        guestId 
+      });
+    }
+    
+    setIsAuthModalOpen(false);
+  }}
+/>
 
       <SettingsDrawer 
         isOpen={isSettingsModalOpen}
