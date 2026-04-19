@@ -147,12 +147,6 @@ export default function GameTableView() {
         onClose={() => setIsDrawerOpen(false)}
         playerNames={playerNames}
         winnerIdx={winnerIdx}
-        onRecord={(payload: ScoringPayload) => {
-          recordHand({ ...payload, winnerIdx });
-          setIsDrawerOpen(false);
-        }}
-        getWindForSeat={getWindForSeat}
-        canAuthFixMode={permissions.isAdmin || (user && tableData?.created_by === user.id)} 
       />
 
       {/* JOIN LOGIC */}
