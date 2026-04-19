@@ -1,6 +1,7 @@
 'use client'
 import { useState, useRef, useEffect } from 'react';
 import { supabase } from '@/lib/supabaseClient';
+import BaseModal from '@/components/shared/ui/BaseModal';
 
 interface UserMenuProps {
   user: any;
@@ -9,9 +10,9 @@ interface UserMenuProps {
 
 export default function UserMenu({ user, profile }: UserMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [activeModal, setActiveModal] = useState<'profile' | 'history' | 'league' | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
-  // Close menu when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
@@ -24,14 +25,14 @@ export default function UserMenu({ user, profile }: UserMenuProps) {
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
-    window.location.href = '/'; // Hard redirect to clear all contexts
+    window.location.href = '/'; 
   };
 
   if (!user) return null;
 
   return (
     <div className="relative" ref={menuRef}>
-      {/* Trigger Button */}
+      {/* TRIGGER */}
       <button 
         onClick={() => setIsOpen(!isOpen)}
         className="flex items-center gap-3 p-1.5 pr-4 rounded-full bg-white border border-zinc-200 hover:border-emerald-500 hover:shadow-md transition-all active:scale-95 group"
@@ -43,31 +44,35 @@ export default function UserMenu({ user, profile }: UserMenuProps) {
           <p className="text-[11px] font-black text-zinc-900 uppercase tracking-tight leading-none">
             {profile?.display_name || 'Player'}
           </p>
-          <p className="text-[9px] font-bold text-zinc-400 leading-none mt-1">
-            View Profile
-          </p>
         </div>
       </button>
 
-      {/* Dropdown Popover */}
+      {/* DROPDOWN */}
       {isOpen && (
         <div className="absolute right-0 mt-3 w-64 bg-white rounded-[2rem] border border-zinc-100 shadow-2xl z-[100] overflow-hidden p-2">
-          {/* Profile Header */}
           <div className="px-5 py-4 bg-zinc-50 rounded-t-[1.5rem] mb-1">
             <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-1">Account</p>
             <p className="text-sm font-black text-zinc-900 truncate">{user.email}</p>
           </div>
 
           <div className="space-y-1">
-            <button className="w-full text-left px-5 py-3 hover:bg-zinc-50 rounded-xl text-sm font-bold text-zinc-700 transition-colors flex justify-between items-center group">
-              Edit Profile
-              <span className="opacity-0 group-hover:opacity-100 transition-opacity">✎</span>
+            <button 
+              onClick={() => { setActiveModal('profile'); setIsOpen(false); }}
+              className="w-full text-left px-5 py-3 hover:bg-zinc-50 rounded-xl text-sm font-bold text-zinc-700 transition-colors flex justify-between items-center group"
+            >
+              Edit Profile <span>✎</span>
             </button>
-            <button className="w-full text-left px-5 py-3 hover:bg-zinc-50 rounded-xl text-sm font-bold text-zinc-700 transition-colors">
+            <button 
+              onClick={() => { setActiveModal('league'); setIsOpen(false); }}
+              className="w-full text-left px-5 py-3 hover:bg-zinc-50 rounded-xl text-sm font-bold text-zinc-700 transition-colors"
+            >
               League Stats
             </button>
-            <button className="w-full text-left px-5 py-3 hover:bg-zinc-50 rounded-xl text-sm font-bold text-zinc-700 transition-colors">
-              History
+            <button 
+              onClick={() => { setActiveModal('history'); setIsOpen(false); }}
+              className="w-full text-left px-5 py-3 hover:bg-zinc-50 rounded-xl text-sm font-bold text-zinc-700 transition-colors"
+            >
+              Career History
             </button>
           </div>
 
@@ -81,6 +86,53 @@ export default function UserMenu({ user, profile }: UserMenuProps) {
           </div>
         </div>
       )}
+
+      {/* --- MODALS FOR FUNCTIONALITY --- */}
+      
+      <BaseModal 
+        isOpen={activeModal === 'profile'} 
+        onClose={() => setActiveModal(null)}
+        title="Edit Profile"
+      >
+        <div className="space-y-4 py-4">
+          <div className="space-y-1">
+            <label className="text-[10px] font-black uppercase text-zinc-400 ml-1">Display Name</label>
+            <input 
+              defaultValue={profile?.display_name}
+              className="w-full p-4 rounded-xl bg-zinc-50 border-2 border-zinc-100 focus:border-emerald-500 outline-none font-bold"
+            />
+          </div>
+          <button className="w-full bg-zinc-900 text-white p-4 rounded-xl font-bold uppercase tracking-widest text-xs">
+            Save Changes
+          </button>
+        </div>
+      </BaseModal>
+
+      <BaseModal 
+        isOpen={activeModal === 'history'} 
+        onClose={() => setActiveModal(null)}
+        title="Career History"
+      >
+        <div className="py-8 text-center space-y-2">
+          <div className="text-4xl">🀄</div>
+          <p className="text-zinc-500 font-medium">Global history coming soon.</p>
+          <p className="text-[10px] text-zinc-300 font-black uppercase">Feature in development</p>
+        </div>
+      </BaseModal>
+
+      <BaseModal 
+        isOpen={activeModal === 'league'} 
+        onClose={() => setActiveModal(null)}
+        title="League Standings"
+      >
+        <div className="py-8 text-center space-y-2">
+          <div className="text-4xl">🏆</div>
+          <p className="text-zinc-500 font-medium">Track your rank across all tables.</p>
+          <button className="text-emerald-600 text-[10px] font-black uppercase border border-emerald-100 px-3 py-1 rounded-full">
+            Coming Soon
+          </button>
+        </div>
+      </BaseModal>
     </div>
   );
 }

@@ -1,6 +1,6 @@
 'use client'
 import React, { useState } from 'react';
-import BaseModal from '@/components/ui/BaseModal';
+import BaseModal from '@/components/shared/ui/BaseModal';
 import LoginForm from './LoginForm';
 import SignupForm from './SignupForm';
 

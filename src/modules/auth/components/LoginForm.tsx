@@ -1,7 +1,7 @@
 'use client'
 import React, { useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
-import Input from '@/components/ui/Input';
+import Input from '@/components/shared/ui/Input';
 
 interface LoginFormProps {
   onSuccess: () => void;
