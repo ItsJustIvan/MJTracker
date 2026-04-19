@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { useTable } from '@/context/TableContext';
 import SeatCard from './table/SeatCard';
 import ScoringDrawer from './table/scoring/ScoringDrawer';
-import SettingsDrawer from './table/SettingsDrawer'; 
+import SettingsDrawer from './table/TableActionCenter'; 
 import AuthModal from '@/modules/auth/components/AuthModal';
 import JoinModal from '@/modules/auth/components/JoinModal';
 
