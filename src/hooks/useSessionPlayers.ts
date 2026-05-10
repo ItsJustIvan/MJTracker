@@ -52,7 +52,7 @@ export function useSessionPlayers(sessionId: string) {
     const { seatIndex, userId, guestId, guestName, isVacating = false } = params;
 
     // 🚀 Calling v3 to enable point portability and atomic swaps
-    const { error } = await supabase.rpc('claim_seat_v3', {
+    const { error } = await supabase.rpc('claim_seat', {
       p_session_id: sessionId,
       p_seat_index: seatIndex,
       p_profile_id: userId || null,
