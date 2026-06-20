@@ -1,0 +1,13 @@
+# MJTracker Workspace Rules for AI Agents
+
+## Core Constraints & Philosophy
+*   **The Database is the Source of Truth:** Do not write or move Mahjong scoring math, rules validations, dealer rotation calculations, or permissions checking into React or TypeScript code. All of these must live strictly inside PostgreSQL stored procedures (RPCs) and schema triggers.
+*   **The Client is a Dumb Terminal:** The Next.js 16 frontend should only fetch values, subscribe to real-time events, and dispatch intents to database RPC endpoints.
+*   **Zero-Sum Scoring:** Every scoring mutation, adjustment, or rollback transaction must be mathematically zero-sum (points deducted from one or more players must exactly equal points added to other players).
+*   **Supabase is Core:** Real-time listeners and authentication flows depend entirely on Supabase services. Embrace this tight coupling cleanly without trying to build intermediate middleware abstractions.
+
+## File Organization & Code Quality
+*   **No Code Duplication:** Consolidate redundant triggers or duplicate procedures during migrations.
+*   **TypeScript Typings:** Ensure all database integrations are type-safe. Run TypeScript compilation to verify contract integrity whenever schemas change.
+*   **Security Gating:** Ensure sensitive modifications (such as sealing tables or starting strict events) evaluate roles via event permissions and are executed with `SECURITY DEFINER` constraints on the server layer.
+*   **Hydration Mismatches:** Always include `suppressHydrationWarning` on the top-level `<html>` tag to bypass browser-extension element attribute overrides.

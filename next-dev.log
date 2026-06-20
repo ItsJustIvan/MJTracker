@@ -1,0 +1,10 @@
+▲ Next.js 16.2.1 (Turbopack)
+- Local:         http://127.0.0.1:3000
+- Network:       http://127.0.0.1:3000
+- Environments: .env.local
+✓ Ready in 491ms
+
+ GET / 200 in 968ms (next.js: 706ms, application-code: 262ms)
+ GET / 200 in 159ms (next.js: 20ms, application-code: 139ms)
+ GET /dashboard 200 in 136ms (next.js: 72ms, application-code: 64ms)
+ GET /dashboard 200 in 64ms (next.js: 8ms, application-code: 56ms)
