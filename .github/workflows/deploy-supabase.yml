@@ -20,6 +20,10 @@ jobs:
 
       - name: Deploy Migrations to Production
         run: |
+          # 1. Force-align the runner's tracking state so it knows the remote migration is already applied
+          supabase migration repair --status completed 20260621164121 --db-url "postgresql://postgres.jjygvwosstcdnmlklsbo:${SUPABASE_DB_PASSWORD}@aws-0-us-west-2.pooler.supabase.com:5432/postgres"
+          
+          # 2. Push and verify that local and remote are completely in sync
           supabase db push --db-url "postgresql://postgres.jjygvwosstcdnmlklsbo:${SUPABASE_DB_PASSWORD}@aws-0-us-west-2.pooler.supabase.com:5432/postgres"
         env:
           SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
