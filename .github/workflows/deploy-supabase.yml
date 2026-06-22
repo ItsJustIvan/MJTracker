@@ -20,4 +20,6 @@ jobs:
 
       - name: Deploy Migrations to Production
         run: |
-          supabase db push --db-url "postgresql://postgres.jjygvwosstcdnmlklsbo@aws-0-us-west-2.pooler.supabase.com:6543/postgres" -p "${{ secrets.SUPABASE_DB_PASSWORD }}"
+          supabase db push --db-url "postgresql://postgres.jjygvwosstcdnmlklsbo@aws-0-us-west-2.pooler.supabase.com:6543/postgres"
+        env:
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
